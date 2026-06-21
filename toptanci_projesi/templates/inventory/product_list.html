@@ -1,0 +1,346 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block extra_css %}
+<link href="{% static 'vendor/datatables/dataTables.bootstrap4.min.css' %}" rel="stylesheet">
+<style>
+    .filter-panel { background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .filter-panel h6 { font-weight: 700; color: #4e73df; border-bottom: 1px solid #e3e6f0; padding-bottom: 8px; margin-bottom: 12px; }
+    .badge-filter { font-size: 0.85rem; padding: 6px 10px; margin-right: 5px; }
+    .detail-label { font-weight: 600; color: #6c757d; width: 140px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <h1 class="h3 mb-0 text-gray-800">{% trans "Product Management" %}</h1>
+    <div>
+        <a href="{% url 'product_intake' %}" class="btn btn-info btn-sm mr-2">
+            <i class="fas fa-dolly-flatbed fa-sm text-white-50"></i> {% trans "Quick Product Intake" %}
+        </a>
+        <a href="{% url 'product_import' %}" class="btn btn-success btn-sm mr-2">
+            <i class="fas fa-file-upload fa-sm text-white-50"></i> {% trans "Import from File" %}
+        </a>
+        <a href="{% url 'product_create' %}" class="btn btn-primary btn-sm">
+            <i class="fas fa-plus fa-sm text-white-50"></i> {% trans "Add New Product" %}
+        </a>
+    </div>
+</div>
+
+<!-- Search Bar -->
+<div class="card shadow mb-3">
+    <div class="card-body py-3">
+        <form method="GET" action="">
+            <div class="input-group">
+                <input type="text" name="q" class="form-control form-control-lg"
+                       placeholder="{% trans 'Search by product name...' %}" value="{{ q }}">
+                <div class="input-group-append">
+                    <button class="btn btn-primary" type="submit">
+                        <i class="fas fa-search"></i> {% trans "Search" %}
+                    </button>
+                    {% if active_filters %}
+                    <a href="{% url 'product_list' %}" class="btn btn-secondary">
+                        <i class="fas fa-times"></i> {% trans "Clear All" %}
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Active Filter Badges -->
+{% if active_filters %}
+<div class="mb-3">
+    <span class="text-muted small mr-2">{% trans "Active Filters" %}:</span>
+    {% for key, value in active_filters.items %}
+    <span class="badge badge-primary badge-filter">{{ key }}: {{ value }}</span>
+    {% endfor %}
+</div>
+{% endif %}
+
+<div class="row">
+    <!-- Filter Panel -->
+    <div class="col-lg-3 mb-4">
+        <div class="filter-panel">
+            <form method="GET" action="" id="filterForm">
+                {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
+                <h6><i class="fas fa-filter mr-1"></i> {% trans "Filter" %}</h6>
+                <div class="mb-3">
+                    <label class="font-weight-bold small text-uppercase text-muted">{% trans "Category" %}</label>
+                    <select name="category" class="form-control form-control-sm">
+                        <option value="">{% trans "All Categories" %}</option>
+                        {% for cat in categories %}
+                        <option value="{{ cat }}" {% if selected_category == cat %}selected{% endif %}>{{ cat }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="font-weight-bold small text-uppercase text-muted">{% trans "Supplier" %}</label>
+                    <select name="supplier" class="form-control form-control-sm">
+                        <option value="">{% trans "All Suppliers" %}</option>
+                        {% for sup in suppliers %}
+                        <option value="{{ sup }}" {% if selected_supplier == sup %}selected{% endif %}>{{ sup }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="font-weight-bold small text-uppercase text-muted">{% trans "Price Range" %} (₺)</label>
+                    <div class="input-group input-group-sm mb-1">
+                        <div class="input-group-prepend"><span class="input-group-text">Min</span></div>
+                        <input type="number" name="min_price" class="form-control" placeholder="0" value="{{ min_price }}" min="0" step="0.01">
+                    </div>
+                    <div class="input-group input-group-sm">
+                        <div class="input-group-prepend"><span class="input-group-text">Max</span></div>
+                        <input type="number" name="max_price" class="form-control" placeholder="9999" value="{{ max_price }}" min="0" step="0.01">
+                    </div>
+                </div>
+                <div class="mb-4">
+                    <label class="font-weight-bold small text-uppercase text-muted">{% trans "Stock Status" %}</label>
+                    <div class="custom-control custom-checkbox">
+                        <input type="checkbox" class="custom-control-input" id="lowStock" name="low_stock" value="1" {% if low_stock %}checked{% endif %}>
+                        <label class="custom-control-label" for="lowStock">{% trans "Show only low stock" %}</label>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary btn-block btn-sm">
+                    <i class="fas fa-filter mr-1"></i> {% trans "Apply Filters" %}
+                </button>
+                <a href="{% url 'product_list' %}" class="btn btn-outline-secondary btn-block btn-sm mt-2">
+                    <i class="fas fa-times mr-1"></i> {% trans "Clear Filters" %}
+                </a>
+            </form>
+        </div>
+    </div>
+
+    <!-- Product Table -->
+    <div class="col-lg-9">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3 d-flex align-items-center justify-content-between">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    {% trans "Products" %}
+                    <span class="badge badge-secondary ml-2">{{ products|length }}</span>
+                </h6>
+                <div class="dropdown">
+                    <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        <i class="fas fa-sort mr-1"></i> {% trans "Sort" %}
+                    </button>
+                    <div class="dropdown-menu dropdown-menu-right">
+                        <a class="dropdown-item {% if current_sort == 'name' %}active{% endif %}"
+                           href="?{% if sort_params %}{{ sort_params }}&{% endif %}sort=name">
+                            <i class="fas fa-sort-alpha-down mr-1"></i> {% trans "Name (A-Z)" %}
+                        </a>
+                        <a class="dropdown-item {% if current_sort == 'category' %}active{% endif %}"
+                           href="?{% if sort_params %}{{ sort_params }}&{% endif %}sort=category">
+                            <i class="fas fa-tags mr-1"></i> {% trans "Category" %}
+                        </a>
+                        <div class="dropdown-divider"></div>
+                        <a class="dropdown-item {% if current_sort == 'stock_asc' %}active{% endif %}"
+                           href="?{% if sort_params %}{{ sort_params }}&{% endif %}sort=stock_asc">
+                            <i class="fas fa-sort-numeric-down mr-1"></i> {% trans "Stock (Low → High)" %}
+                        </a>
+                        <a class="dropdown-item {% if current_sort == 'stock_desc' %}active{% endif %}"
+                           href="?{% if sort_params %}{{ sort_params }}&{% endif %}sort=stock_desc">
+                            <i class="fas fa-sort-numeric-up mr-1"></i> {% trans "Stock (High → Low)" %}
+                        </a>
+                        <div class="dropdown-divider"></div>
+                        <a class="dropdown-item {% if current_sort == 'last_movement' %}active{% endif %}"
+                           href="?{% if sort_params %}{{ sort_params }}&{% endif %}sort=last_movement">
+                            <i class="fas fa-clock mr-1"></i> {% trans "Last Movement" %}
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-bordered table-hover" id="dataTable" width="100%" cellspacing="0">
+                        <thead>
+                            <tr>
+                                <th>{% trans "Name" %}</th>
+                                <th>{% trans "Category" %}</th>
+                                <th>{% trans "Price" %}</th>
+                                <th>{% trans "Supplier" %}</th>
+                                <th>{% trans "Stock" %}</th>
+                                <th class="text-right">{% trans "Actions" %}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for product in products %}
+                            <tr {% if product.is_low_stock %}class="table-warning"{% endif %}>
+                                <td class="align-middle">
+                                    {{ product.name }}
+                                    {% if product.is_low_stock %}
+                                    <span class="badge badge-danger ml-1">{% trans "Low Stock" %}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="align-middle">{{ product.category }}</td>
+                                <td class="align-middle">{{ product.price }} ₺</td>
+                                <td class="align-middle">{{ product.supplier }}</td>
+                                <td class="align-middle"><strong>{{ product.stock_quantity }}</strong> {{ product.unit }}</td>
+                                <td class="text-right align-middle">
+                                    <button type="button" class="btn btn-success btn-circle btn-sm" title="{% trans 'Increase Stock' %}"
+                                            data-toggle="modal" data-target="#increaseModal{{ product.pk }}">
+                                        <i class="fas fa-plus"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-warning btn-circle btn-sm" title="{% trans 'Decrease Stock' %}"
+                                            data-toggle="modal" data-target="#decreaseModal{{ product.pk }}">
+                                        <i class="fas fa-minus"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-secondary btn-circle btn-sm" title="{% trans 'Product Details' %}" data-toggle="modal" data-target="#detailModal{{ product.pk }}">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                    <a href="{% url 'product_update' product.pk %}" class="btn btn-primary btn-circle btn-sm" title="{% trans 'Edit' %}">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <a href="{% url 'stock_history' product.pk %}" class="btn btn-info btn-circle btn-sm" title="{% trans 'Stock History' %}">
+                                        <i class="fas fa-history"></i>
+                                    </a>
+                                    <a href="{% url 'product_delete' product.pk %}" class="btn btn-danger btn-circle btn-sm" title="{% trans 'Delete' %}">
+                                        <i class="fas fa-trash"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="text-center text-muted py-4">
+                                    <i class="fas fa-search fa-2x mb-2 d-block"></i>
+                                    {% trans "No products found matching your filters." %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===================== MODALS (tablo dışında) ===================== -->
+{% for product in products %}
+
+<!-- Increase Stock Modal -->
+<div class="modal fade" id="increaseModal{{ product.pk }}" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-sm" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title text-success">
+                    <i class="fas fa-plus-circle mr-2"></i>{% trans "Increase Stock" %}
+                </h5>
+                <button type="button" class="close" data-dismiss="modal"><span>×</span></button>
+            </div>
+            <form action="{% url 'product_increase_stock' product.pk %}" method="post">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <p class="text-muted small mb-2">{{ product.name }}</p>
+                    <p class="mb-2">{% trans "Current Stock" %}: <strong>{{ product.stock_quantity }} {{ product.unit }}</strong></p>
+                    <div class="form-group mb-0">
+                        <label class="font-weight-bold">{% trans "Amount to Add" %}</label>
+                        <input type="number" name="amount" class="form-control" value="1" min="1" autofocus>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">{% trans "Cancel" %}</button>
+                    <button type="submit" class="btn btn-success btn-sm">
+                        <i class="fas fa-plus mr-1"></i>{% trans "Add" %}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Decrease Stock Modal -->
+<div class="modal fade" id="decreaseModal{{ product.pk }}" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-sm" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title text-warning">
+                    <i class="fas fa-minus-circle mr-2"></i>{% trans "Decrease Stock" %}
+                </h5>
+                <button type="button" class="close" data-dismiss="modal"><span>×</span></button>
+            </div>
+            <form action="{% url 'product_decrease_stock' product.pk %}" method="post">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <p class="text-muted small mb-2">{{ product.name }}</p>
+                    <p class="mb-2">{% trans "Current Stock" %}: <strong>{{ product.stock_quantity }} {{ product.unit }}</strong></p>
+                    <div class="form-group mb-0">
+                        <label class="font-weight-bold">{% trans "Amount to Remove" %}</label>
+                        <input type="number" name="amount" class="form-control" value="1" min="1" max="{{ product.stock_quantity }}">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">{% trans "Cancel" %}</button>
+                    <button type="submit" class="btn btn-warning btn-sm">
+                        <i class="fas fa-minus mr-1"></i>{% trans "Remove" %}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+
+<div class="modal fade" id="detailModal{{ product.pk }}" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-box mr-2 text-primary"></i>{{ product.name }}
+                </h5>
+                <button type="button" class="close" data-dismiss="modal"><span>×</span></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <table class="table table-sm">
+                            <tbody>
+                                <tr><td class="detail-label">{% trans "Product Name" %}</td><td>{{ product.name }}</td></tr>
+                                <tr><td class="detail-label">{% trans "Category" %}</td><td>{{ product.category }}</td></tr>
+                                <tr><td class="detail-label">{% trans "Manufacturer" %}</td><td>{{ product.manufacturer }}</td></tr>
+                                <tr><td class="detail-label">{% trans "Supplier" %}</td><td>{{ product.supplier|default:"-" }}</td></tr>
+                                <tr><td class="detail-label">{% trans "Price" %}</td><td><strong>{{ product.price }} ₺</strong></td></tr>
+                                <tr><td class="detail-label">{% trans "Tax Rate (%)" %}</td><td>%{{ product.tax_rate }}</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <table class="table table-sm">
+                            <tbody>
+                                <tr>
+                                    <td class="detail-label">{% trans "Stock Quantity" %}</td>
+                                    <td>
+                                        <strong>{{ product.stock_quantity }}</strong> {{ product.unit }}
+                                        {% if product.is_low_stock %}<span class="badge badge-danger ml-1">{% trans "Low Stock" %}</span>{% endif %}
+                                    </td>
+                                </tr>
+                                <tr><td class="detail-label">{% trans "Minimum Stock" %}</td><td>{{ product.min_stock }}</td></tr>
+                                <tr><td class="detail-label">{% trans "Unit" %}</td><td>{{ product.unit }}</td></tr>
+                                <tr><td class="detail-label">{% trans "Barcode" %}</td><td>{{ product.barcode|default:"-" }}</td></tr>
+                                <tr>
+                                    <td class="detail-label">{% trans "Shelf Location" %}</td>
+                                    <td>{% if product.shelf_location %}<span class="badge badge-info">{{ product.shelf_location }}</span>{% else %}-{% endif %}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <a href="{% url 'stock_history' product.pk %}" class="btn btn-info btn-sm">
+                    <i class="fas fa-history mr-1"></i> {% trans "Stock History" %}
+                </a>
+                <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">{% trans "Cancel" %}</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'vendor/datatables/jquery.dataTables.min.js' %}"></script>
+<script src="{% static 'vendor/datatables/dataTables.bootstrap4.min.js' %}"></script>
+{% endblock %}

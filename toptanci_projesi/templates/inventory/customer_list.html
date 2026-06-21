@@ -1,0 +1,272 @@
+{% extends 'base.html' %}
+{% load i18n %}
+{% load custom_filters %}
+
+{% block content %}
+<div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <h1 class="h3 mb-0 text-gray-800">{% trans "Customer Management" %}</h1>
+    <a href="{% url 'customer_create' %}" class="btn btn-primary btn-sm">
+        <i class="fas fa-plus fa-sm text-white-50"></i> {% trans "Add New Customer" %}
+    </a>
+</div>
+
+<!-- Search Bar -->
+<div class="card shadow mb-4">
+    <div class="card-body py-3">
+        <form method="GET" action="">
+            <div class="input-group">
+                <input type="text" name="q" class="form-control form-control-lg"
+                       placeholder="{% trans 'Search by customer name...' %}" value="{{ q }}">
+                <div class="input-group-append">
+                    <button class="btn btn-primary" type="submit">
+                        <i class="fas fa-search"></i> {% trans "Search" %}
+                    </button>
+                    {% if q %}
+                    <a href="{% url 'customer_list' %}" class="btn btn-secondary">
+                        <i class="fas fa-times"></i> {% trans "Clear All" %}
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Customer Table -->
+<div class="card shadow mb-4">
+    <div class="card-header py-3 d-flex align-items-center justify-content-between">
+        <h6 class="m-0 font-weight-bold text-primary">
+            {% trans "Customers" %}
+            <span class="badge badge-secondary ml-2">{{ customers|length }}</span>
+        </h6>
+        <div class="dropdown">
+            <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-toggle="dropdown">
+                <i class="fas fa-sort mr-1"></i> {% trans "Sort" %}
+            </button>
+            <div class="dropdown-menu dropdown-menu-right">
+                <a class="dropdown-item {% if current_sort == 'name' %}active{% endif %}"
+                   href="?{% if sort_params %}{{ sort_params }}&{% endif %}sort=name">
+                    <i class="fas fa-sort-alpha-down mr-1"></i> {% trans "Name (A-Z)" %}
+                </a>
+                <a class="dropdown-item {% if current_sort == 'shop_name' %}active{% endif %}"
+                   href="?{% if sort_params %}{{ sort_params }}&{% endif %}sort=shop_name">
+                    <i class="fas fa-store mr-1"></i> {% trans "Shop Name" %}
+                </a>
+                <div class="dropdown-divider"></div>
+                <a class="dropdown-item {% if current_sort == 'debt_desc' %}active{% endif %}"
+                   href="?{% if sort_params %}{{ sort_params }}&{% endif %}sort=debt_desc">
+                    <i class="fas fa-sort-numeric-down mr-1"></i> {% trans "Debt (High → Low)" %}
+                </a>
+                <a class="dropdown-item {% if current_sort == 'debt_asc' %}active{% endif %}"
+                   href="?{% if sort_params %}{{ sort_params }}&{% endif %}sort=debt_asc">
+                    <i class="fas fa-sort-numeric-up mr-1"></i> {% trans "Debt (Low → High)" %}
+                </a>
+                <a class="dropdown-item {% if current_sort == 'rating' %}active{% endif %}"
+                   href="?{% if sort_params %}{{ sort_params }}&{% endif %}sort=rating">
+                    <i class="fas fa-star mr-1"></i> {% trans "Debt Rating (A → F)" %}
+                </a>
+                <div class="dropdown-divider"></div>
+                <a class="dropdown-item {% if current_sort == 'created' %}active{% endif %}"
+                   href="?{% if sort_params %}{{ sort_params }}&{% endif %}sort=created">
+                    <i class="fas fa-clock mr-1"></i> {% trans "Newest First" %}
+                </a>
+            </div>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover" width="100%" cellspacing="0">
+                <thead>
+                    <tr>
+                        <th>{% trans "Customer Name" %}</th>
+                        <th>{% trans "Shop Name" %}</th>
+                        <th>{% trans "Contact Person" %}</th>
+                        <th>{% trans "Phone" %}</th>
+                        <th>{% trans "Email" %}</th>
+                        <th>{% trans "Debt (₺)" %}</th>
+                        <th class="text-right">{% trans "Actions" %}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for customer in customers %}
+                    <tr {% if customer.debt > 0 %}class="table-warning"{% endif %}>
+                        <td class="align-middle font-weight-bold">{{ customer.name }}</td>
+                        <td class="align-middle">{{ customer.shop_name|default:"-" }}</td>
+                        <td class="align-middle">{{ customer.contact_person|default:"-" }}</td>
+                        <td class="align-middle">{{ customer.phone|format_phone|default:"-" }}</td>
+                        <td class="align-middle">
+                            {% if customer.email %}
+                            <a href="mailto:{{ customer.email }}">{{ customer.email }}</a>
+                            {% else %}-{% endif %}
+                        </td>
+                        <td class="align-middle">
+                            {% if customer.debt > 0 %}
+                            <div>{{ customer.debt|format_money }} ₺</div>
+                            {% if customer.debt_rating == 'B' %}
+                                <span class="badge badge-info">{% trans "Note" %}: B — {% trans "Not Due Yet" %}</span>
+                            {% elif customer.debt_rating == 'C' %}
+                                <span class="badge badge-warning text-dark">{% trans "Note" %}: C — {% trans "1-30 Days Late" %}</span>
+                            {% elif customer.debt_rating == 'D' %}
+                                <span class="badge badge-danger">{% trans "Note" %}: D — {% trans "31-90 Days Late" %}</span>
+                            {% elif customer.debt_rating == 'F' %}
+                                <span class="badge badge-dark">{% trans "Note" %}: F — {% trans "90+ Days Late" %}</span>
+                            {% endif %}
+                            {% else %}
+                            <span class="text-success font-weight-bold">
+                                <i class="fas fa-check-circle mr-1"></i>0.00 ₺
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="text-right align-middle">
+                            <button type="button" class="btn btn-secondary btn-circle btn-sm"
+                                    title="{% trans 'Customer Details' %}"
+                                    data-toggle="modal" data-target="#detailModal{{ customer.pk }}">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <a href="{% url 'customer_update' customer.pk %}"
+                               class="btn btn-info btn-circle btn-sm" title="{% trans 'Edit' %}">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            <a href="{% url 'customer_delete' customer.pk %}"
+                               class="btn btn-danger btn-circle btn-sm" title="{% trans 'Delete' %}">
+                                <i class="fas fa-trash"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center text-muted py-4">
+                            <i class="fas fa-users fa-2x mb-2 d-block"></i>
+                            {% trans "No customers found." %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Detail Modals -->
+{% for customer in customers %}
+<div class="modal fade" id="detailModal{{ customer.pk }}" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-user mr-2 text-primary"></i>{{ customer.name }}
+                </h5>
+                <button type="button" class="close" data-dismiss="modal"><span>×</span></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <table class="table table-sm">
+                            <tbody>
+                                <tr>
+                                    <td class="font-weight-bold text-muted" style="width:140px">{% trans "Customer Name" %}</td>
+                                    <td>{{ customer.name }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="font-weight-bold text-muted">{% trans "Shop Name" %}</td>
+                                    <td>{{ customer.shop_name|default:"-" }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="font-weight-bold text-muted">{% trans "Contact Person" %}</td>
+                                    <td>{{ customer.contact_person|default:"-" }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="font-weight-bold text-muted">{% trans "Phone" %}</td>
+                                    <td>{{ customer.phone|format_phone|default:"-" }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="font-weight-bold text-muted">{% trans "Email" %}</td>
+                                    <td>{{ customer.email|default:"-" }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <table class="table table-sm">
+                            <tbody>
+                                <tr>
+                                    <td class="font-weight-bold text-muted" style="width:140px">{% trans "Debt (₺)" %}</td>
+                                    <td>
+                                        {% if customer.debt > 0 %}
+                                        <strong>{{ customer.debt|format_money }} ₺</strong>
+                                        {% else %}
+                                        <span class="text-success font-weight-bold"><i class="fas fa-check-circle"></i> 0,00 ₺</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="font-weight-bold text-muted">{% trans "Payment Due Date" %}</td>
+                                    <td>
+                                        {% if customer.debt_due_date %}
+                                            {{ customer.debt_due_date|date:"d.m.Y" }}
+                                            {% if customer.days_overdue is not None %}
+                                                {% if customer.days_overdue > 0 %}
+                                                <span class="text-danger small ml-1">(+{{ customer.days_overdue }} {% trans "days overdue" %})</span>
+                                                {% elif customer.days_overdue == 0 %}
+                                                <span class="text-warning small ml-1">({% trans "due today" %})</span>
+                                                {% else %}
+                                                <span class="text-success small ml-1">({{ customer.days_overdue|cut:"-" }} {% trans "days left" %})</span>
+                                                {% endif %}
+                                            {% endif %}
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="font-weight-bold text-muted">{% trans "Debt Rating" %}</td>
+                                    <td>
+                                        {% if customer.debt_rating == 'A' %}
+                                        <span class="badge badge-success px-2 py-1" style="font-size:1rem;">A — {% trans "No Debt" %}</span>
+                                        {% elif customer.debt_rating == 'B' %}
+                                        <span class="badge badge-info px-2 py-1" style="font-size:1rem;">B — {% trans "Not Due Yet" %}</span>
+                                        {% elif customer.debt_rating == 'C' %}
+                                        <span class="badge badge-warning text-dark px-2 py-1" style="font-size:1rem;">C — {% trans "1-30 Days Late" %}</span>
+                                        {% elif customer.debt_rating == 'D' %}
+                                        <span class="badge badge-danger px-2 py-1" style="font-size:1rem;">D — {% trans "31-90 Days Late" %}</span>
+                                        {% elif customer.debt_rating == 'F' %}
+                                        <span class="badge badge-dark px-2 py-1" style="font-size:1rem;">F — {% trans "90+ Days Late" %}</span>
+                                        {% endif %}
+                                        {% if customer.risk_score > 0 %}
+                                        <div class="text-muted small mt-1">{% trans "Risk Score" %}: {{ customer.risk_score|format_money }}</div>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="font-weight-bold text-muted" style="width:140px">{% trans "Tax Number" %}</td>
+                                    <td>{{ customer.tax_number|default:"-" }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="font-weight-bold text-muted">{% trans "Address" %}</td>
+                                    <td>{{ customer.address|default:"-" }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="font-weight-bold text-muted">{% trans "Notes" %}</td>
+                                    <td>{{ customer.notes|default:"-" }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="font-weight-bold text-muted">{% trans "Created At" %}</td>
+                                    <td>{{ customer.created_at|date:"d.m.Y H:i" }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <a href="{% url 'customer_update' customer.pk %}" class="btn btn-info btn-sm">
+                    <i class="fas fa-edit mr-1"></i> {% trans "Edit" %}
+                </a>
+                <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">{% trans "Cancel" %}</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+{% endblock %}

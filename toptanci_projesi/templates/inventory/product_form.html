@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+{% load i18n %}
+{% block content %}
+
+<h1 class="h3 mb-4 text-gray-800">
+    {% if form.instance.pk %}{% trans "Update Product" %}{% else %}{% trans "Add New Product" %}{% endif %}
+</h1>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">{% trans "Product Details" %}</h6>
+            </div>
+            <div class="card-body">
+                {% if not form.instance.pk %}
+                <div class="alert alert-info py-2">
+                    <i class="fas fa-barcode mr-1"></i>
+                    {% trans "Scan the barcode into the Barcode field — known products are auto-filled from memory." %}
+                </div>
+                {% endif %}
+                <div id="barcodeHint" style="display:none;" class="alert py-2"></div>
+                <form method="post" id="productForm">
+                    {% csrf_token %}
+                    {{ form.as_p }}
+                    <button type="submit" class="btn btn-primary">{% trans "Save" %}</button>
+                    <a href="{% url 'product_list' %}" class="btn btn-secondary">{% trans "Cancel" %}</a>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const form = document.getElementById('productForm');
+    const barcodeInput = form.querySelector('input[name="barcode"]');
+    const hint = document.getElementById('barcodeHint');
+    if (!barcodeInput) return;
+
+    function field(name) { return form.querySelector('[name="' + name + '"]'); }
+
+    function showHint(type, msg) {
+        hint.className = 'alert alert-' + type + ' py-2';
+        hint.innerHTML = msg;
+        hint.style.display = 'block';
+    }
+
+    // Tanınan barkodu hafızadan çek ve boş alanları doldur
+    function lookup(code) {
+        code = (code || '').trim();
+        if (!code) return;
+        fetch('/api/barcode/' + encodeURIComponent(code) + '/')
+            .then(r => r.json())
+            .then(data => {
+                if (data.already_in_stock) {
+                    showHint('warning', '<i class="fas fa-exclamation-triangle mr-1"></i> {% trans "This product is already in stock" %}: <strong>' + data.existing_name + '</strong>');
+                    return;
+                }
+                if (data.found) {
+                    // sadece boş alanları doldur (kullanıcının yazdığını ezme)
+                    const map = {name: data.name, manufacturer: data.manufacturer, category: data.category, unit: data.unit, tax_rate: data.tax_rate};
+                    let filled = false;
+                    for (const k in map) {
+                        const el = field(k);
+                        if (el && (el.value === '' || el.value === null) && map[k]) {
+                            el.value = map[k];
+                            filled = true;
+                        }
+                    }
+                    showHint('success', '<i class="fas fa-check-circle mr-1"></i> {% trans "Recognized from memory" %}: <strong>' + data.name + '</strong>' + (filled ? ' — {% trans "fields auto-filled" %}' : ''));
+                    const nameEl = field('name');
+                    if (nameEl && !nameEl.value) nameEl.focus();
+                } else {
+                    showHint('secondary', '<i class="fas fa-info-circle mr-1"></i> {% trans "Unknown barcode — enter the details; it will be remembered." %}');
+                }
+            })
+            .catch(() => {});
+    }
+
+    // Enter formu göndermesin; bunun yerine hafızada ara
+    barcodeInput.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            lookup(this.value);
+        }
+    });
+    // Barkod alanından çıkınca da ara
+    barcodeInput.addEventListener('change', function () { lookup(this.value); });
+});
+</script>
+{% endblock %}

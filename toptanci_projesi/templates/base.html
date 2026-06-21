@@ -1,0 +1,295 @@
+{% load static %}
+{% load i18n %}
+<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE }}">
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>Papirus Yönetim Sistemi</title>
+    <link href="{% static 'vendor/fontawesome-free/css/all.min.css' %}" rel="stylesheet" type="text/css">
+    <link href="https://fonts.googleapis.com/css?family=Nunito:200,200i,300,300i,400,400i,600,600i,700,700i,800,800i,900,900i" rel="stylesheet">
+    <link href="{% static 'css/sb-admin-2.min.css' %}" rel="stylesheet">
+    <style>
+        /* İçerik alanı (#content-wrapper) kendi içinde kayar; üst bar onun içinde
+           position:sticky ile tepeye yapışır. Kenar çubuğu sabit kalır. */
+        html, body { height: 100%; margin: 0; }
+        body { overflow: hidden; }
+        #wrapper { height: 100vh; overflow: hidden; }
+        #content-wrapper { height: 100vh; overflow-y: auto; overflow-x: hidden; }
+        .topbar { position: sticky; top: 0; z-index: 1030; }
+        .sidebar { height: 100vh; overflow-y: auto; }
+        /* Otomatik tamamlama önerileri */
+        .pp-autocomplete { position: absolute; z-index: 2000; background: #fff; border: 1px solid #d1d3e2;
+            border-radius: 0 0 .35rem .35rem; box-shadow: 0 6px 16px rgba(0,0,0,.15); max-height: 320px; overflow-y: auto; }
+        .pp-item { padding: 7px 12px; cursor: pointer; display: flex; justify-content: space-between;
+            align-items: center; gap: 10px; font-size: .9rem; border-bottom: 1px solid #f0f1f6; }
+        .pp-item:last-child { border-bottom: none; }
+        .pp-item:hover, .pp-item.active { background: #eaf0ff; }
+        .pp-meta { color: #858796; font-size: .76rem; white-space: nowrap; }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+
+<body id="page-top">
+    <div id="wrapper">
+
+        <!-- Sidebar -->
+        <ul class="navbar-nav bg-gradient-primary sidebar sidebar-dark accordion" id="accordionSidebar">
+            <a class="sidebar-brand d-flex align-items-center justify-content-center" href="/">
+                <div class="sidebar-brand-icon rotate-n-15">
+                    <i class="fas fa-box"></i>
+                </div>
+                <div class="sidebar-brand-text mx-3">Papirus<sup>SYS</sup></div>
+            </a>
+            <hr class="sidebar-divider my-0">
+            <li class="nav-item active">
+                <a class="nav-link" href="/">
+                    <i class="fas fa-fw fa-tachometer-alt"></i>
+                    <span>{% trans "Dashboard" %}</span>
+                </a>
+            </li>
+            <hr class="sidebar-divider">
+            <div class="sidebar-heading">{% trans "Products" %}</div>
+            <li class="nav-item">
+                <a class="nav-link" href="{% url 'product_list' %}">
+                    <i class="fas fa-fw fa-table"></i>
+                    <span>{% trans "Product Management" %}</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="{% url 'product_intake' %}">
+                    <i class="fas fa-fw fa-dolly-flatbed"></i>
+                    <span>{% trans "Quick Product Intake" %}</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="{% url 'all_stock_movements' %}">
+                    <i class="fas fa-fw fa-history"></i>
+                    <span>{% trans "Stock Movements" %}</span>
+                </a>
+            </li>
+            <hr class="sidebar-divider">
+            <div class="sidebar-heading">{% trans "Sales" %}</div>
+            <li class="nav-item">
+                <a class="nav-link" href="{% url 'sale_create' %}">
+                    <i class="fas fa-fw fa-cart-plus"></i>
+                    <span>{% trans "New Sale" %}</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="{% url 'sale_list' %}">
+                    <i class="fas fa-fw fa-receipt"></i>
+                    <span>{% trans "All Sales" %}</span>
+                </a>
+            </li>
+            {% if user.is_superuser %}
+            <hr class="sidebar-divider">
+            <div class="sidebar-heading">{% trans "Customers" %}</div>
+            <li class="nav-item">
+                <a class="nav-link" href="{% url 'customer_list' %}">
+                    <i class="fas fa-fw fa-users"></i>
+                    <span>{% trans "Customer Management" %}</span>
+                </a>
+            </li>
+            {% endif %}
+            <hr class="sidebar-divider d-none d-md-block">
+            <div class="text-center d-none d-md-inline">
+                <button class="rounded-circle border-0" id="sidebarToggle"></button>
+            </div>
+        </ul>
+
+        <div id="content-wrapper" class="d-flex flex-column">
+            <div id="content">
+                <!-- Topbar (sabit / sticky) -->
+                <nav class="navbar navbar-expand navbar-light bg-white topbar mb-4 sticky-top shadow">
+                    <button id="sidebarToggleTop" class="btn btn-link d-md-none rounded-circle mr-2">
+                        <i class="fa fa-bars"></i>
+                    </button>
+
+                    <!-- Geri / İleri / Yenile -->
+                    <button type="button" class="btn btn-light btn-sm mr-1" title="{% trans 'Back' %}" onclick="history.back()">
+                        <i class="fas fa-arrow-left"></i>
+                    </button>
+                    <button type="button" class="btn btn-light btn-sm mr-1" title="{% trans 'Forward' %}" onclick="history.forward()">
+                        <i class="fas fa-arrow-right"></i>
+                    </button>
+                    <button type="button" class="btn btn-light btn-sm mr-2" title="{% trans 'Refresh' %}" onclick="location.reload()">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+
+                    <!-- Logo -->
+                    <a class="d-none d-sm-flex align-items-center text-decoration-none" href="/">
+                        <i class="fas fa-box text-primary"></i>
+                        <span class="ml-2 font-weight-bold text-gray-800">Papirus<sup>SYS</sup></span>
+                    </a>
+
+                    <ul class="navbar-nav ml-auto">
+                        <!-- Language Switcher -->
+                        <li class="nav-item dropdown no-arrow mr-2">
+                            <a class="nav-link dropdown-toggle" href="#" id="langDropdown" role="button"
+                               data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                <i class="fas fa-globe fa-fw"></i>
+                            </a>
+                            <div class="dropdown-menu dropdown-menu-right shadow" aria-labelledby="langDropdown">
+                                <form action="{% url 'set_language' %}" method="post">
+                                    {% csrf_token %}
+                                    <input name="next" type="hidden" value="{{ request.path }}">
+                                    <button type="submit" name="language" value="tr" class="dropdown-item">
+                                        🇹🇷 Türkçe
+                                    </button>
+                                    <button type="submit" name="language" value="en" class="dropdown-item">
+                                        🇬🇧 English
+                                    </button>
+                                </form>
+                            </div>
+                        </li>
+                        <div class="topbar-divider d-none d-sm-block"></div>
+                        <!-- User -->
+                        <li class="nav-item dropdown no-arrow">
+                            <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button"
+                                data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                <span class="mr-2 d-none d-lg-inline text-gray-600 small">
+                                    {{ user.username }}
+                                    {% if user.is_superuser %}
+                                    <span class="badge badge-primary ml-1">{% trans "Owner" %}</span>
+                                    {% else %}
+                                    <span class="badge badge-secondary ml-1">{% trans "Staff" %}</span>
+                                    {% endif %}
+                                </span>
+                                <img class="img-profile rounded-circle" src="{% static 'img/undraw_profile.svg' %}">
+                            </a>
+                            <div class="dropdown-menu dropdown-menu-right shadow animated--grow-in" aria-labelledby="userDropdown">
+                                {% if user.is_superuser %}
+                                <h6 class="dropdown-header">{% trans "Administration" %}</h6>
+                                <a class="dropdown-item" href="{% url 'register' %}">
+                                    <i class="fas fa-user-plus fa-sm fa-fw mr-2 text-gray-400"></i>
+                                    {% trans "Add User" %}
+                                </a>
+                                <a class="dropdown-item" href="{% url 'reference_import' %}">
+                                    <i class="fas fa-database fa-sm fa-fw mr-2 text-gray-400"></i>
+                                    {% trans "Barcode Memory" %}
+                                </a>
+                                <a class="dropdown-item" href="/admin/">
+                                    <i class="fas fa-cog fa-sm fa-fw mr-2 text-gray-400"></i>
+                                    {% trans "Admin Panel" %}
+                                </a>
+                                <div class="dropdown-divider"></div>
+                                {% endif %}
+                                <a class="dropdown-item" href="#" data-toggle="modal" data-target="#logoutModal">
+                                    <i class="fas fa-sign-out-alt fa-sm fa-fw mr-2 text-gray-400"></i>
+                                    {% trans "Logout" %}
+                                </a>
+                            </div>
+                        </li>
+                    </ul>
+                </nav>
+
+                <div class="container-fluid">
+                    {% block content %}{% endblock %}
+                </div>
+            </div>
+
+            <footer class="sticky-footer bg-white">
+                <div class="container my-auto">
+                    <div class="copyright text-center my-auto">
+                        <span>Papirus Sistemi &copy; 2026</span>
+                    </div>
+                </div>
+            </footer>
+        </div>
+    </div>
+
+    <a class="scroll-to-top rounded" href="#page-top">
+        <i class="fas fa-angle-up"></i>
+    </a>
+
+    <!-- Logout Modal -->
+    <div class="modal fade" id="logoutModal" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">{% trans "Confirm Logout" %}</h5>
+                    <button class="close" type="button" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">×</span>
+                    </button>
+                </div>
+                <div class="modal-body">{% trans "Select the logout button below to end your current session." %}</div>
+                <div class="modal-footer">
+                    <form method="post" action="{% url 'logout' %}">
+                        {% csrf_token %}
+                        <button class="btn btn-secondary" type="button" data-dismiss="modal">{% trans "Cancel" %}</button>
+                        <button class="btn btn-primary" type="submit">{% trans "Logout" %}</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="{% static 'vendor/jquery/jquery.min.js' %}"></script>
+    <script src="{% static 'vendor/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
+    <script src="{% static 'vendor/jquery-easing/jquery.easing.min.js' %}"></script>
+    <script src="{% static 'js/sb-admin-2.min.js' %}"></script>
+    <script>
+    // Genel otomatik tamamlama: bir input'a bağlanır, yazdıkça ürün önerir.
+    // scope: 'sale' (stoktakiler) | 'intake' (ürünler + barkod hafızası)
+    // onSelect(item): bir öneri seçilince çağrılır.
+    function attachAutocomplete(input, scope, onSelect) {
+        if (!input) return;
+        var dd = document.createElement('div');
+        dd.className = 'pp-autocomplete';
+        dd.style.display = 'none';
+        document.body.appendChild(dd);
+        var items = [], active = -1, timer = null;
+
+        function close() { dd.style.display = 'none'; active = -1; items = []; }
+        function position() {
+            var r = input.getBoundingClientRect();
+            dd.style.left = (r.left + window.scrollX) + 'px';
+            dd.style.top = (r.bottom + window.scrollY) + 'px';
+            dd.style.width = r.width + 'px';
+        }
+        function render() {
+            if (!items.length) { close(); return; }
+            dd.innerHTML = items.map(function (it, i) {
+                var meta = it.type === 'product'
+                    ? (it.barcode || '') + ' · ' + it.stock + ' ' + it.unit + ' · ' + Number(it.price).toFixed(2) + '₺'
+                    : (it.barcode || '') + ' · {% trans "memory" %}';
+                return '<div class="pp-item ' + (i === active ? 'active' : '') + '" data-i="' + i + '">' +
+                    '<span>' + it.name + '</span><span class="pp-meta">' + meta + '</span></div>';
+            }).join('');
+            position(); dd.style.display = 'block';
+            dd.querySelectorAll('.pp-item').forEach(function (el) {
+                el.addEventListener('mousedown', function (e) { e.preventDefault(); pick(parseInt(el.dataset.i)); });
+            });
+        }
+        function pick(i) { if (items[i]) { onSelect(items[i]); } input.value = ''; close(); }
+
+        input.addEventListener('input', function () {
+            var q = this.value.trim();
+            clearTimeout(timer);
+            if (q.length < 2) { close(); return; }
+            timer = setTimeout(function () {
+                fetch('/api/product-search/?scope=' + scope + '&q=' + encodeURIComponent(q))
+                    .then(function (r) { return r.json(); })
+                    .then(function (d) { items = d.results || []; active = -1; render(); })
+                    .catch(close);
+            }, 180);
+        });
+        // Bu keydown, sayfanın tarama (Enter) işleyicisinden ÖNCE çalışsın diye
+        // erken bağlanır; öneri seçiliyse Enter'ı tüketir.
+        input.addEventListener('keydown', function (e) {
+            if (dd.style.display === 'none') return;
+            if (e.key === 'ArrowDown') { e.preventDefault(); active = Math.min(active + 1, items.length - 1); render(); }
+            else if (e.key === 'ArrowUp') { e.preventDefault(); active = Math.max(active - 1, 0); render(); }
+            else if (e.key === 'Enter' && active >= 0) { e.preventDefault(); e.stopImmediatePropagation(); pick(active); }
+            else if (e.key === 'Escape') { close(); }
+        });
+        input.addEventListener('blur', function () { setTimeout(close, 150); });
+        window.addEventListener('resize', function () { if (dd.style.display !== 'none') position(); });
+    }
+    </script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

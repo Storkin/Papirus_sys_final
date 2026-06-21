@@ -1,0 +1,184 @@
+{% extends 'base.html' %}
+{% load i18n %}
+
+{% block content %}
+<div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <h1 class="h3 mb-0 text-gray-800">
+        {% if customer %}{% trans "Update Customer" %}{% else %}{% trans "Add New Customer" %}{% endif %}
+    </h1>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <form method="post">
+            {% csrf_token %}
+
+            <!-- Müşteri Bilgileri -->
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-user mr-1"></i> {% trans "Customer Details" %}
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 form-group">
+                            <label class="font-weight-bold">{{ form.name.label }}</label>
+                            {{ form.name }}
+                        </div>
+                        <div class="col-md-6 form-group">
+                            <label class="font-weight-bold">{{ form.shop_name.label }}</label>
+                            {{ form.shop_name }}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 form-group">
+                            <label class="font-weight-bold">{{ form.contact_person.label }}</label>
+                            {{ form.contact_person }}
+                        </div>
+                        <div class="col-md-6 form-group">
+                            <label class="font-weight-bold">{{ form.phone.label }}</label>
+                            <div class="input-group">
+                                <div class="input-group-prepend">
+                                    <span class="input-group-text"><i class="fas fa-phone fa-sm"></i></span>
+                                </div>
+                                {{ form.phone }}
+                            </div>
+                            <small class="text-muted">{% trans "e.g. 0512 347 8485" %}</small>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 form-group">
+                            <label class="font-weight-bold">{{ form.email.label }}</label>
+                            {{ form.email }}
+                        </div>
+                        <div class="col-md-6 form-group">
+                            <label class="font-weight-bold">{{ form.tax_number.label }}</label>
+                            {{ form.tax_number }}
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="font-weight-bold">{{ form.address.label }}</label>
+                        {{ form.address }}
+                    </div>
+                    <div class="form-group">
+                        <label class="font-weight-bold">{{ form.notes.label }}</label>
+                        {{ form.notes }}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Borç Bilgileri -->
+            <div class="card shadow mb-4 border-left-danger">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-danger">
+                        <i class="fas fa-lira-sign mr-1"></i> {% trans "Debt Information" %}
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% if form.debt.errors %}
+                    <div class="alert alert-danger py-2">{{ form.debt.errors }}</div>
+                    {% endif %}
+                    <div class="row">
+                        <div class="col-md-5 form-group mb-0">
+                            <label class="font-weight-bold">{{ form.debt.label }}</label>
+                            <div class="input-group">
+                                {{ form.debt }}
+                                <div class="input-group-append">
+                                    <span class="input-group-text font-weight-bold">₺</span>
+                                </div>
+                            </div>
+                            <small class="text-muted">{% trans "e.g. 1.500,00 or 1500" %}</small>
+                        </div>
+                        <div class="col-md-5 form-group mb-0">
+                            <label class="font-weight-bold">{{ form.debt_due_date.label }}</label>
+                            <div class="input-group">
+                                <div class="input-group-prepend">
+                                    <span class="input-group-text"><i class="fas fa-calendar fa-sm"></i></span>
+                                </div>
+                                {{ form.debt_due_date }}
+                            </div>
+                            <small class="text-muted">{% trans "Leave blank if no debt" %}</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-end mb-4">
+                <a href="{% url 'customer_list' %}" class="btn btn-secondary mr-2">
+                    <i class="fas fa-times mr-1"></i>{% trans "Cancel" %}
+                </a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save mr-1"></i> {% trans "Save" %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// ── Telefon: yazarken anlık boşluk ekle ─────────────────────────────────────
+const phoneInput = document.getElementById('id_phone');
+if (phoneInput) {
+    phoneInput.addEventListener('input', function () {
+        const pos = this.selectionStart;
+        const before = this.value.length;
+        let digits = this.value.replace(/\D/g, '').slice(0, 11);
+        let formatted = digits;
+        if (digits.length > 7)
+            formatted = digits.slice(0,4) + ' ' + digits.slice(4,7) + ' ' + digits.slice(7);
+        else if (digits.length > 4)
+            formatted = digits.slice(0,4) + ' ' + digits.slice(4);
+        this.value = formatted;
+        // İmleç pozisyonunu koru
+        const diff = formatted.length - before;
+        this.setSelectionRange(pos + diff, pos + diff);
+    });
+}
+
+// ── Borç: yazarken anlık binlik nokta ekle ───────────────────────────────────
+const debtInput = document.getElementById('id_debt');
+if (debtInput) {
+    // Sayfa açılınca mevcut değeri formatla
+    applyDebtFormat();
+
+    debtInput.addEventListener('input', function () {
+        const pos = this.selectionStart;
+        const before = this.value.length;
+
+        // Sadece rakam ve tek virgüle izin ver
+        let raw = this.value.replace(/[^\d,]/g, '');
+        const commaIdx = raw.indexOf(',');
+        if (commaIdx !== -1) {
+            // Virgülden sonra max 2 rakam, ikinci virgülü sil
+            let intPart = raw.slice(0, commaIdx);
+            let decPart = raw.slice(commaIdx + 1).replace(/,/g, '').slice(0, 2);
+            raw = intPart + ',' + decPart;
+        }
+
+        // Tam sayı kısmına binlik nokta ekle
+        const parts = raw.split(',');
+        parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        this.value = parts.join(',');
+
+        // İmleç pozisyonunu koru
+        const diff = this.value.length - before;
+        const newPos = Math.max(0, pos + diff);
+        this.setSelectionRange(newPos, newPos);
+    });
+
+    function applyDebtFormat() {
+        let raw = debtInput.value.replace(/\./g, '').replace(',', '.');
+        let num = parseFloat(raw);
+        if (!isNaN(num) && num > 0) {
+            debtInput.value = num.toLocaleString('tr-TR', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+        }
+    }
+}
+</script>
+{% endblock %}

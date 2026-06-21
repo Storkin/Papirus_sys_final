@@ -1,0 +1,199 @@
+{% extends 'base.html' %}
+{% load i18n %}
+
+{% block content %}
+<div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <h1 class="h3 mb-0 text-gray-800">
+        <i class="fas fa-dolly-flatbed mr-2 text-primary"></i> {% trans "Quick Product Intake" %}
+    </h1>
+    <a href="{% url 'product_list' %}" class="btn btn-secondary btn-sm">
+        <i class="fas fa-arrow-left mr-1"></i> {% trans "Back to Products" %}
+    </a>
+</div>
+
+{% if saved %}
+<div class="alert alert-success">
+    <i class="fas fa-check-circle mr-1"></i>
+    {% trans "Saved" %}: <strong>{{ saved.added|length }}</strong> {% trans "new" %},
+    <strong>{{ saved.updated|length }}</strong> {% trans "stock updated" %}.
+    <a href="{% url 'all_stock_movements' %}" class="ml-2">{% trans "View Stock Movements" %}</a>
+</div>
+{% endif %}
+
+<form method="post" id="intakeForm">
+    {% csrf_token %}
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 d-flex align-items-center justify-content-between">
+            <h6 class="m-0 font-weight-bold text-primary">
+                <i class="fas fa-list mr-1"></i> {% trans "New Arrivals" %}
+                <span class="badge badge-secondary ml-2" id="rowCount">0</span>
+            </h6>
+            <button type="button" class="btn btn-success btn-sm" id="addRow">
+                <i class="fas fa-plus mr-1"></i> {% trans "Add Row" %}
+            </button>
+        </div>
+
+        <!-- Barkod tarama -->
+        <div class="card-body pb-0 pt-3">
+            <div class="input-group">
+                <div class="input-group-prepend">
+                    <span class="input-group-text bg-warning text-dark font-weight-bold">
+                        <i class="fas fa-barcode mr-1"></i> {% trans "Scan Barcode" %}
+                    </span>
+                </div>
+                <input type="text" id="scanInput" class="form-control form-control-lg"
+                       placeholder="{% trans 'Scan or type barcode, press Enter...' %}" autocomplete="off">
+            </div>
+            <div id="scanAlert" style="display:none;" class="alert py-2 mt-2 mb-0"></div>
+        </div>
+
+        <div class="card-body p-0 mt-3">
+            <div class="px-3 pb-2">
+                <div class="input-group input-group-sm" style="max-width:420px">
+                    <div class="input-group-prepend"><span class="input-group-text"><i class="fas fa-search"></i></span></div>
+                    <input type="text" id="rowFilter" class="form-control"
+                           placeholder="{% trans 'Search in list (name / barcode)...' %}" autocomplete="off">
+                </div>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-bordered mb-0" id="rowsTable">
+                    <thead class="thead-light">
+                        <tr>
+                            <th style="width:20%">{% trans "Barcode" %}</th>
+                            <th style="width:34%">{% trans "Product Name" %}</th>
+                            <th style="width:12%" class="text-center">{% trans "Quantity" %}</th>
+                            <th style="width:15%">{% trans "Purchase Price" %} (₺)</th>
+                            <th style="width:15%">{% trans "Sale Price" %} (₺)</th>
+                            <th style="width:4%"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="rowsBody"></tbody>
+                </table>
+            </div>
+            <div id="emptyMsg" class="text-center text-muted py-4">
+                <i class="fas fa-barcode fa-2x mb-2 d-block" style="color:#e3e6f0"></i>
+                {% trans "Scan a barcode or click \"Add Row\" to start" %}
+            </div>
+        </div>
+
+        <div class="card-footer d-flex justify-content-between align-items-center">
+            <span class="small text-muted">
+                <i class="fas fa-info-circle mr-1"></i>
+                {% trans "Known barcodes auto-fill the name. Existing products get their stock increased; new ones are created." %}
+            </span>
+            <button type="submit" class="btn btn-primary" id="saveBtn" disabled>
+                <i class="fas fa-save mr-1"></i> {% trans "Save" %}
+            </button>
+        </div>
+    </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let rowIndex = 0;
+const tbody = document.getElementById('rowsBody');
+
+function updateCount() {
+    const n = tbody.querySelectorAll('tr').length;
+    document.getElementById('rowCount').textContent = n;
+    document.getElementById('emptyMsg').style.display = n ? 'none' : '';
+    document.getElementById('saveBtn').disabled = n === 0;
+}
+
+function addRow(data = {}) {
+    const idx = rowIndex++;
+    const tr = document.createElement('tr');
+    tr.id = 'r' + idx;
+    tr.innerHTML = `
+        <td><input type="text" name="barcode_${idx}" value="${data.barcode || ''}" class="form-control form-control-sm bc-input" data-idx="${idx}" autocomplete="off"></td>
+        <td><input type="text" name="name_${idx}" value="${data.name ? data.name.replace(/"/g,'&quot;') : ''}" class="form-control form-control-sm name-input" required></td>
+        <td><input type="number" name="qty_${idx}" value="${data.qty || 1}" min="1" class="form-control form-control-sm text-center"></td>
+        <td><input type="number" name="buy_${idx}" value="${data.buy || ''}" step="0.01" min="0" class="form-control form-control-sm text-right" placeholder="—"></td>
+        <td><input type="number" name="sell_${idx}" value="${data.sell || ''}" step="0.01" min="0" class="form-control form-control-sm text-right" placeholder="—"></td>
+        <td class="text-center align-middle">
+            <button type="button" class="btn btn-danger btn-sm" onclick="removeRow(${idx})" tabindex="-1"><i class="fas fa-times"></i></button>
+        </td>`;
+    tbody.appendChild(tr);
+    // barkod input'unda Enter -> formu gondermesin, hafizadan ara
+    const bc = tr.querySelector('.bc-input');
+    bc.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') { e.preventDefault(); lookupInto(idx, this.value); }
+    });
+    updateCount();
+    return idx;
+}
+
+function removeRow(idx) {
+    const r = document.getElementById('r' + idx);
+    if (r) r.remove();
+    updateCount();
+}
+
+// Barkodu hafizadan arayip satirin adini doldur
+function lookupInto(idx, code) {
+    code = (code || '').trim();
+    if (!code) return;
+    fetch('/api/barcode/' + encodeURIComponent(code) + '/')
+        .then(r => r.json())
+        .then(d => {
+            if (d.found) {
+                const row = document.getElementById('r' + idx);
+                const nameEl = row.querySelector('.name-input');
+                if (nameEl && !nameEl.value) nameEl.value = d.name;
+            }
+        }).catch(() => {});
+}
+
+document.getElementById('addRow').addEventListener('click', () => addRow());
+
+// Üst tarama alani: okut -> satir ekle, adi doldur, yeni taramaya hazirla
+const scanInput = document.getElementById('scanInput');
+const scanAlert = document.getElementById('scanAlert');
+
+// Otomatik tamamlama: isim/barkod yazarken oneri sun, secince satir ekle
+attachAutocomplete(scanInput, 'intake', function (item) {
+    addRow({ barcode: item.barcode, name: item.name });
+    scanInput.focus();
+});
+function flash(type, msg) {
+    scanAlert.className = 'alert alert-' + type + ' py-2 mt-2 mb-0';
+    scanAlert.textContent = msg; scanAlert.style.display = 'block';
+    clearTimeout(scanAlert._t); scanAlert._t = setTimeout(() => scanAlert.style.display = 'none', 2500);
+}
+scanInput.addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    const code = this.value.trim(); this.value = '';
+    if (!code) return;
+    fetch('/api/barcode/' + encodeURIComponent(code) + '/')
+        .then(r => r.json())
+        .then(d => {
+            if (d.already_in_stock) {
+                addRow({ barcode: code, name: d.name });
+                flash('info', '↑ ' + d.name + ' — ' + '{% trans "already in stock, stock will be increased" %}');
+            } else if (d.found) {
+                addRow({ barcode: code, name: d.name });
+                flash('success', '✓ ' + d.name);
+            } else {
+                addRow({ barcode: code });
+                flash('secondary', '{% trans "Unknown barcode — type the name" %}');
+            }
+            this.focus();
+        }).catch(() => { addRow({ barcode: code }); this.focus(); });
+});
+
+// Tabloda canlı filtre (ad/barkod)
+const rowFilter = document.getElementById('rowFilter');
+rowFilter.addEventListener('input', function () {
+    const q = this.value.trim().toLowerCase();
+    tbody.querySelectorAll('tr').forEach(function (tr) {
+        const txt = Array.from(tr.querySelectorAll('input')).map(i => i.value).join(' ').toLowerCase();
+        tr.style.display = (!q || txt.indexOf(q) !== -1) ? '' : 'none';
+    });
+});
+
+updateCount();
+scanInput.focus();
+</script>
+{% endblock %}

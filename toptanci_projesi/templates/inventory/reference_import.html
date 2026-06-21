@@ -1,0 +1,123 @@
+{% extends 'base.html' %}
+{% load i18n %}
+
+{% block content %}
+<div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <h1 class="h3 mb-0 text-gray-800">
+        <i class="fas fa-database mr-2 text-primary"></i> {% trans "Barcode Memory Import" %}
+    </h1>
+    <a href="{% url 'product_list' %}" class="btn btn-secondary btn-sm">
+        <i class="fas fa-arrow-left mr-1"></i> {% trans "Back to Products" %}
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3 bg-primary">
+                <h6 class="m-0 font-weight-bold text-white">
+                    <i class="fas fa-upload mr-2"></i> {% trans "Upload File" %}
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info py-2 small">
+                    <i class="fas fa-info-circle mr-1"></i>
+                    {% trans "These barcodes are stored only as a local reference (name, brand, category). They are NOT added to stock — they help auto-fill the form when you add a product later. Nothing is sent to the internet." %}
+                </div>
+                <form method="post" enctype="multipart/form-data" id="importForm">
+                    {% csrf_token %}
+                    <div class="form-group">
+                        <label class="font-weight-bold">{% trans "Select File" %} <span class="text-muted font-weight-normal">(CSV / Excel)</span></label>
+                        <div class="custom-file">
+                            <input type="file" class="custom-file-input" id="import_file" name="import_file" accept=".csv,.xlsx" required>
+                            <label class="custom-file-label" for="import_file" id="fileLabel">{% trans "Choose file..." %}</label>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block mt-3" id="submitBtn">
+                        <i class="fas fa-file-import mr-1"></i> {% trans "Import" %}
+                    </button>
+                </form>
+                <hr>
+                <div class="text-center">
+                    <a href="{% url 'reference_import_template' %}" class="btn btn-outline-success btn-sm">
+                        <i class="fas fa-download mr-1"></i> {% trans "Download Empty Template (CSV)" %}
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow mt-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-secondary">
+                    <i class="fas fa-columns mr-2"></i> {% trans "Supported Columns" %}
+                </h6>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-sm table-bordered mb-0 small">
+                    <thead class="thead-light">
+                        <tr><th>{% trans "Column Name" %}</th><th>{% trans "Description" %}</th><th class="text-center">{% trans "Required" %}</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td><code>barcode</code></td><td>{% trans "Barcode" %}</td><td class="text-center text-danger">✓</td></tr>
+                        <tr><td><code>name</code></td><td>{% trans "Product Name" %}</td><td class="text-center text-danger">✓</td></tr>
+                        <tr><td><code>manufacturer</code></td><td>{% trans "Manufacturer" %}</td><td class="text-center text-muted">—</td></tr>
+                        <tr><td><code>category</code></td><td>{% trans "Category" %}</td><td class="text-center text-muted">—</td></tr>
+                        <tr><td><code>unit</code></td><td>{% trans "Unit" %}</td><td class="text-center text-muted">—</td></tr>
+                        <tr><td><code>tax_rate</code></td><td>{% trans "Tax Rate (%)" %}</td><td class="text-center text-muted">—</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6 mb-4">
+        {% if results %}
+        <div class="row mb-4">
+            <div class="col-4">
+                <div class="card border-left-success shadow h-100 py-2"><div class="card-body">
+                    <div class="text-xs font-weight-bold text-success text-uppercase mb-1">{% trans "Added" %}</div>
+                    <div class="h4 mb-0 font-weight-bold text-gray-800">{{ results.added }}</div>
+                </div></div>
+            </div>
+            <div class="col-4">
+                <div class="card border-left-primary shadow h-100 py-2"><div class="card-body">
+                    <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">{% trans "Updated" %}</div>
+                    <div class="h4 mb-0 font-weight-bold text-gray-800">{{ results.updated }}</div>
+                </div></div>
+            </div>
+            <div class="col-4">
+                <div class="card border-left-warning shadow h-100 py-2"><div class="card-body">
+                    <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">{% trans "Skipped" %}</div>
+                    <div class="h4 mb-0 font-weight-bold text-gray-800">{{ results.skipped }}</div>
+                </div></div>
+            </div>
+        </div>
+        {% if results.errors %}
+        <div class="alert alert-danger"><ul class="mb-0 small">{% for e in results.errors %}<li>{{ e }}</li>{% endfor %}</ul></div>
+        {% endif %}
+        <div class="alert alert-success">
+            <i class="fas fa-check-circle mr-1"></i>
+            {% trans "Barcode memory now contains" %} <strong>{{ results.total }}</strong> {% trans "records." %}
+        </div>
+        {% else %}
+        <div class="card shadow"><div class="card-body text-center py-5 text-muted">
+            <i class="fas fa-database fa-4x mb-3 d-block" style="color:#e3e6f0"></i>
+            <h5>{% trans "Upload a file" %}</h5>
+            <p class="mb-0">{% trans "Select your CSV or Excel file on the left and click" %} <strong>{% trans "Import" %}</strong>.</p>
+        </div></div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('import_file').addEventListener('change', function () {
+    document.getElementById('fileLabel').textContent = this.files[0] ? this.files[0].name : '{% trans "Choose file..." %}';
+});
+document.getElementById('importForm').addEventListener('submit', function () {
+    var b = document.getElementById('submitBtn');
+    b.disabled = true; b.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> {% trans "Importing..." %}';
+});
+</script>
+{% endblock %}

@@ -1,0 +1,25 @@
+# Claude
+.claude/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Django / proje
+db.sqlite3
+secret_key.txt
+staticfiles/
+backups/
+errors.log
+# Not: *.mo (derlenmiş çeviriler) bilerek git'e dahil — dükkan PC'sinde
+# gettext kurmaya gerek kalmasın, Türkçe yazılar hazır gelsin.
+
+# Ortam dosyaları
+.env
+*.env
+
+# Kullanılmayan şablon indirmesi (gerçek statik dosyalar toptanci_projesi/static içinde)
+startbootstrap-sb-admin-2-gh-pages/
+# Test/geçici dosyalar
+test_urun_aktarim.xlsx
