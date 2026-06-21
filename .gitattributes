@@ -1,0 +1,6 @@
+# Satır sonlarını normalleştir (CRLF/LF uyarılarını engeller)
+* text=auto
+
+# Derlenmiş çeviri dosyaları ikili (binary) olarak işaretlensin
+*.mo binary
+*.ico binary
