@@ -682,6 +682,51 @@ msgstr "memory"
 msgid "Search in list (name / barcode)..."
 msgstr "Search in list (name / barcode)..."
 
+msgid "Update Application"
+msgstr "Update Application"
+
+msgid "This downloads the latest version from GitHub and applies it. Your data (products, sales) is preserved."
+msgstr "This downloads the latest version from GitHub and applies it. Your data (products, sales) is preserved."
+
+msgid "After the update, the app must be restarted for changes to take effect — a button will appear for that."
+msgstr "After the update, the app must be restarted for changes to take effect — a button will appear for that."
+
+msgid "Check & Update Now"
+msgstr "Check & Update Now"
+
+msgid "You are already on the latest version."
+msgstr "You are already on the latest version."
+
+msgid "Update downloaded and applied successfully!"
+msgstr "Update downloaded and applied successfully!"
+
+msgid "Update failed. See details below."
+msgstr "Update failed. See details below."
+
+msgid "To apply the update, restart the application:"
+msgstr "To apply the update, restart the application:"
+
+msgid "Restart Now"
+msgstr "Restart Now"
+
+msgid "If the window does not reopen by itself, open it from the desktop 'Papirus SYS' icon."
+msgstr "If the window does not reopen by itself, open it from the desktop 'Papirus SYS' icon."
+
+msgid "Updating, please wait..."
+msgstr "Updating, please wait..."
+
+msgid "Restarting..."
+msgstr "Restarting..."
+
+msgid "Restarting the application..."
+msgstr "Restarting the application..."
+
+msgid "Please wait a few seconds. The application will reopen by itself."
+msgstr "Please wait a few seconds. The application will reopen by itself."
+
+msgid "If it does not reopen, double-click the 'Papirus SYS' icon on the desktop."
+msgstr "If it does not reopen, double-click the 'Papirus SYS' icon on the desktop."
+
 msgid "products loaded"
 msgstr "products loaded"
 

@@ -683,6 +683,51 @@ msgstr "hafıza"
 msgid "Search in list (name / barcode)..."
 msgstr "Listede ara (ad / barkod)..."
 
+msgid "Update Application"
+msgstr "Uygulamayı Güncelle"
+
+msgid "This downloads the latest version from GitHub and applies it. Your data (products, sales) is preserved."
+msgstr "Bu işlem GitHub'dan en son sürümü indirir ve uygular. Verileriniz (ürünler, satışlar) korunur."
+
+msgid "After the update, the app must be restarted for changes to take effect — a button will appear for that."
+msgstr "Güncellemeden sonra değişikliklerin geçerli olması için uygulama yeniden başlatılmalıdır — bunun için bir buton çıkacak."
+
+msgid "Check & Update Now"
+msgstr "Kontrol Et ve Güncelle"
+
+msgid "You are already on the latest version."
+msgstr "Zaten en son sürümü kullanıyorsunuz."
+
+msgid "Update downloaded and applied successfully!"
+msgstr "Güncelleme indirildi ve başarıyla uygulandı!"
+
+msgid "Update failed. See details below."
+msgstr "Güncelleme başarısız oldu. Ayrıntılar aşağıda."
+
+msgid "To apply the update, restart the application:"
+msgstr "Güncellemeyi uygulamak için uygulamayı yeniden başlatın:"
+
+msgid "Restart Now"
+msgstr "Şimdi Yeniden Başlat"
+
+msgid "If the window does not reopen by itself, open it from the desktop 'Papirus SYS' icon."
+msgstr "Pencere kendiliğinden açılmazsa, masaüstündeki 'Papirus SYS' ikonundan açın."
+
+msgid "Updating, please wait..."
+msgstr "Güncelleniyor, lütfen bekleyin..."
+
+msgid "Restarting..."
+msgstr "Yeniden başlatılıyor..."
+
+msgid "Restarting the application..."
+msgstr "Uygulama yeniden başlatılıyor..."
+
+msgid "Please wait a few seconds. The application will reopen by itself."
+msgstr "Birkaç saniye bekleyin. Uygulama kendiliğinden tekrar açılacak."
+
+msgid "If it does not reopen, double-click the 'Papirus SYS' icon on the desktop."
+msgstr "Açılmazsa masaüstündeki 'Papirus SYS' ikonuna çift tıklayın."
+
 msgid "products loaded"
 msgstr "ürün yüklü"
 

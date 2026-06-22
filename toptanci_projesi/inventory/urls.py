@@ -26,4 +26,6 @@ urlpatterns = [
     path('api/barcode/<str:code>/', views.barcode_lookup, name='barcode_lookup'),
     path('reference/import/', views.reference_import, name='reference_import'),
     path('reference/import/template/', views.reference_import_template, name='reference_import_template'),
+    path('update/', views.update_app, name='update_app'),
+    path('restart/', views.restart_app, name='restart_app'),
 ]

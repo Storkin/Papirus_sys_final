@@ -8,9 +8,15 @@ from .forms import ProductForm, CustomerForm
 from django.http import HttpResponseRedirect, HttpResponse, JsonResponse
 from django.urls import reverse
 from django.db.models import Subquery, OuterRef
+from django.conf import settings
 from functools import wraps
 import csv
 import io
+import os
+import sys
+import subprocess
+import threading
+import time
 
 
 def patron_required(view_func):
@@ -864,3 +870,58 @@ def reference_import_template(request):
     writer.writerow(['8680000000001', 'Örnek A4 Kağıt', 'Papirus', 'Kağıt', 'paket', '20'])
     writer.writerow(['8680000000002', 'Örnek Tükenmez Kalem', 'Bic', 'Kalem', 'adet', '20'])
     return response
+
+
+# ─── Uygulama Güncelleme (uygulama içinden) ─────────────────────────────────────
+
+@patron_required
+def update_app(request):
+    """Uygulama içinden GitHub'dan güncelleme: git pull + paketler + migrate + collectstatic.
+    Sadece Patron. Kod değişiklikleri için sonrasında yeniden başlatma gerekir."""
+    result = None
+    if request.method == 'POST':
+        repo_root = os.path.dirname(settings.BASE_DIR)  # .../Papirus-sys-main (.git burada)
+        base = str(settings.BASE_DIR)
+        py = sys.executable
+        steps = []
+
+        def run(label, args, cwd):
+            try:
+                p = subprocess.run(args, cwd=cwd, capture_output=True, text=True,
+                                   timeout=300, encoding='utf-8', errors='replace')
+                out = ((p.stdout or '') + (p.stderr or '')).strip()
+                steps.append({'label': label, 'ok': p.returncode == 0, 'out': out or '(çıktı yok)'})
+                return p.returncode == 0
+            except FileNotFoundError:
+                steps.append({'label': label, 'ok': False, 'out': 'Komut bulunamadı (git kurulu mu?).'})
+                return False
+            except Exception as e:
+                steps.append({'label': label, 'ok': False, 'out': str(e)})
+                return False
+
+        ok = run('Yeni sürüm indiriliyor (git pull)', ['git', 'pull'], repo_root)
+        updated = ok and 'Already up to date' not in steps[-1]['out'] and 'güncel' not in steps[-1]['out'].lower()
+        if ok and updated:
+            run('Paketler güncelleniyor', [py, '-m', 'pip', 'install', '-r', os.path.join(base, 'requirements.txt'), '--quiet'], base)
+            run('Veritabanı güncelleniyor (migrate)', [py, os.path.join(base, 'manage.py'), 'migrate', '--noinput'], base)
+            run('Statik dosyalar', [py, os.path.join(base, 'manage.py'), 'collectstatic', '--noinput'], base)
+        result = {'steps': steps, 'ok': ok, 'updated': updated}
+    return render(request, 'inventory/update_app.html', {'result': result})
+
+
+@patron_required
+def restart_app(request):
+    """Uygulamayı yeniden başlatır: yeni süreç başlatıp mevcut süreci kapatır."""
+    if request.method == 'POST':
+        def _restart():
+            time.sleep(1.0)
+            try:
+                flags = getattr(subprocess, 'DETACHED_PROCESS', 0) | getattr(subprocess, 'CREATE_NEW_PROCESS_GROUP', 0)
+                subprocess.Popen([sys.executable, os.path.join(str(settings.BASE_DIR), 'launcher.py')],
+                                 cwd=str(settings.BASE_DIR), close_fds=True, creationflags=flags)
+            except Exception:
+                pass
+            os._exit(0)
+        threading.Thread(target=_restart, daemon=True).start()
+        return render(request, 'inventory/restarting.html', {})
+    return redirect('update_app')
