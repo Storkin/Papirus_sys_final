@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 {% load i18n %}
+{% load l10n %}
 
 {% block extra_css %}
 <link href="{% static 'vendor/datatables/dataTables.bootstrap4.min.css' %}" rel="stylesheet">
@@ -174,7 +175,11 @@
                                     {% endif %}
                                 </td>
                                 <td class="align-middle">{{ product.category }}</td>
-                                <td class="align-middle">{{ product.price }} ₺</td>
+                                <td class="align-middle price-cell" data-pk="{{ product.pk }}" data-price="{{ product.price|unlocalize }}"
+                                    title="{% trans 'Double-click to edit the price' %}" style="cursor:pointer">
+                                    <span class="price-text">{{ product.price }} ₺</span>
+                                    <i class="fas fa-pen fa-xs text-muted ml-1" style="opacity:.4"></i>
+                                </td>
                                 <td class="align-middle">{{ product.supplier }}</td>
                                 <td class="align-middle"><strong>{{ product.stock_quantity }}</strong> {{ product.unit }}</td>
                                 <td class="text-right align-middle">
@@ -343,4 +348,59 @@
 {% block extra_js %}
 <script src="{% static 'vendor/datatables/jquery.dataTables.min.js' %}"></script>
 <script src="{% static 'vendor/datatables/dataTables.bootstrap4.min.js' %}"></script>
+<script>
+// Fiyata çift tıkla -> düzenle -> kaydet (hızlı fiyat güncelleme)
+(function () {
+    function csrf() {
+        var el = document.querySelector('[name=csrfmiddlewaretoken]');
+        return el ? el.value : '';
+    }
+    function fmt(v) {
+        return Number(v).toFixed(2).replace('.', ',') + ' ₺';
+    }
+    document.querySelectorAll('.price-cell').forEach(function (cell) {
+        cell.addEventListener('dblclick', function () {
+            if (cell.querySelector('input')) return;  // zaten düzenlemede
+            var pk = cell.dataset.pk;
+            var cur = cell.dataset.price;
+            cell.innerHTML = '<input type="number" step="0.01" min="0" value="' + cur +
+                '" class="form-control form-control-sm" style="width:100px;display:inline-block">';
+            var inp = cell.querySelector('input');
+            inp.focus(); inp.select();
+            var done = false;
+            function save() {
+                if (done) return; done = true;
+                var val = inp.value;
+                var body = 'price=' + encodeURIComponent(val);
+                fetch('/products/' + pk + '/price/', {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': csrf(), 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: body
+                }).then(function (r) { return r.json(); }).then(function (d) {
+                    if (d.ok) {
+                        cell.dataset.price = d.price;
+                        cell.innerHTML = '<span class="price-text">' + fmt(d.price) +
+                            '</span> <i class="fas fa-pen fa-xs text-muted ml-1" style="opacity:.4"></i>';
+                        cell.classList.add('table-success');
+                        setTimeout(function () { cell.classList.remove('table-success'); }, 800);
+                    } else {
+                        cancel();
+                        alert(d.error || 'Geçersiz fiyat');
+                    }
+                }).catch(function () { cancel(); });
+            }
+            function cancel() {
+                if (done) return; done = true;
+                cell.innerHTML = '<span class="price-text">' + fmt(cur) +
+                    '</span> <i class="fas fa-pen fa-xs text-muted ml-1" style="opacity:.4"></i>';
+            }
+            inp.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') { e.preventDefault(); save(); }
+                else if (e.key === 'Escape') { e.preventDefault(); cancel(); }
+            });
+            inp.addEventListener('blur', save);
+        });
+    });
+})();
+</script>
 {% endblock %}

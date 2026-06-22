@@ -686,6 +686,9 @@ msgstr "Listede ara (ad / barkod)..."
 msgid "Update Application"
 msgstr "Uygulamayı Güncelle"
 
+msgid "Double-click to edit the price"
+msgstr "Fiyatı düzenlemek için çift tıklayın"
+
 msgid "This downloads the latest version from GitHub and applies it. Your data (products, sales) is preserved."
 msgstr "Bu işlem GitHub'dan en son sürümü indirir ve uygular. Verileriniz (ürünler, satışlar) korunur."
 

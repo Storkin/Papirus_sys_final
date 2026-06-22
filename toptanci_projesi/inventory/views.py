@@ -203,6 +203,24 @@ def product_update(request, pk):
 
 
 @login_required
+def product_update_price(request, pk):
+    """Ürün listesinden hızlı fiyat güncelleme (çift tıkla düzenle). AJAX."""
+    if request.method != 'POST':
+        return JsonResponse({'ok': False}, status=405)
+    product = get_object_or_404(Product, pk=pk)
+    raw = request.POST.get('price', '').strip().replace('.', '').replace(',', '.') if (',' in request.POST.get('price', '') and '.' in request.POST.get('price', '')) else request.POST.get('price', '').strip().replace(',', '.')
+    try:
+        price = float(raw)
+        if price < 0:
+            raise ValueError
+    except ValueError:
+        return JsonResponse({'ok': False, 'error': 'Geçersiz fiyat'}, status=400)
+    product.price = round(price, 2)
+    product.save(update_fields=['price'])
+    return JsonResponse({'ok': True, 'price': product.price})
+
+
+@login_required
 def product_delete(request, pk):
     product = get_object_or_404(Product, pk=pk)
     if request.method == 'POST':

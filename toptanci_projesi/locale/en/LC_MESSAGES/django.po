@@ -685,6 +685,9 @@ msgstr "Search in list (name / barcode)..."
 msgid "Update Application"
 msgstr "Update Application"
 
+msgid "Double-click to edit the price"
+msgstr "Double-click to edit the price"
+
 msgid "This downloads the latest version from GitHub and applies it. Your data (products, sales) is preserved."
 msgstr "This downloads the latest version from GitHub and applies it. Your data (products, sales) is preserved."
 
