@@ -619,20 +619,26 @@ def product_import(request):
         except Exception as e:
             errors.append(f'Dosya okunurken hata oluştu: {str(e)}')
 
+        # Başlık satırı / teknik-ad satırı sayılacak değerler (atlanır)
+        _header_like = {
+            'name', 'ürün adı', 'urun adi', 'stok adı', 'stok adi', 'stok_adi',
+            'stok adı', 'ürün adi', 'stokadı',
+        }
         preview = []
         for row in rows:
-            name = _imp_get(row, 'name', 'Ürün Adı')
-            if not name or name.lower() in ('name', 'ürün adı', 'urun adi'):
+            # Ad: 'Ürün Adı' veya 'Stok Adı' (farklı tedarikçi/program başlıkları)
+            name = _imp_get(row, 'name', 'Ürün Adı', 'Stok Adı', 'STOK_ADI', 'STOK ADI')
+            if not name or name.strip().lower() in _header_like:
                 continue
             try:
-                qty = int(float(_imp_get(row, 'stock_quantity', 'Stok Miktarı', default='0').replace(',', '.')))
+                qty = int(float(_imp_get(row, 'stock_quantity', 'Stok Miktarı', 'Miktar', 'MIKTAR', default='0').replace(',', '.')))
             except (ValueError, TypeError):
                 qty = 0
             try:
-                purchase = float(_imp_get(row, 'price', 'Fiyat', default='0').replace(',', '.'))
+                purchase = float(_imp_get(row, 'price', 'Fiyat', 'Birim Fiyat', 'BIRIM_FIYAT', 'Birim Fiyatı', default='0').replace(',', '.'))
             except (ValueError, TypeError):
                 purchase = 0.0
-            barcode = _imp_get(row, 'barcode', 'Barkod')
+            barcode = _imp_get(row, 'barcode', 'Barkod', 'BARKOD')
             existing = None
             if barcode:
                 existing = Product.objects.filter(barcode=barcode).first()
@@ -640,7 +646,7 @@ def product_import(request):
                 existing = Product.objects.filter(name__iexact=name).first()
             preview.append({
                 'name': name, 'barcode': barcode,
-                'unit': _imp_get(row, 'unit', 'Birim', default='adet'),
+                'unit': _imp_get(row, 'unit', 'Birim', 'BIRIM', default='adet'),
                 'category': _imp_get(row, 'category', 'Kategori'),
                 'manufacturer': _imp_get(row, 'manufacturer', 'Üretici'),
                 'supplier': _imp_get(row, 'supplier', 'Tedarikçi'),
