@@ -56,27 +56,59 @@ STORAGE_PATH = os.path.join(
 os.makedirs(STORAGE_PATH, exist_ok=True)
 
 
+KEEP_BACKUPS = 30  # her konumda tutulacak yedek sayısı
+
+
+def backup_dirs():
+    """Yedeklerin yazılacağı KONUMLAR — proje klasörünün DIŞINDA, birden fazla yerde.
+    Böylece proje/uygulama silinse bile yedekler durur; OneDrive varsa buluta da gider."""
+    home = os.path.expanduser('~')
+    dirs = []
+    # 1) OneDrive (buluta otomatik yüklenir — bilgisayar tamamen gitse bile veri durur)
+    od = os.environ.get('OneDrive') or os.environ.get('OneDriveConsumer')
+    if od and os.path.isdir(od):
+        dirs.append(os.path.join(od, 'Papirus_Yedek'))
+    # 2) Kullanıcı klasöründe sabit yer (proje klasörü silinse de durur)
+    dirs.append(os.path.join(home, 'Papirus_Yedek'))
+    # 3) Belgeler klasörü
+    for docs in (os.path.join(home, 'Documents'), os.path.join(home, 'Belgeler')):
+        if os.path.isdir(docs):
+            dirs.append(os.path.join(docs, 'Papirus_Yedek'))
+            break
+    return dirs
+
+
 def backup_db():
-    """Her açılışta veritabanını tarihli olarak yedekler; son 15 yedeği tutar."""
+    """Veritabanını birden fazla güvenli konuma tarihli olarak yedekler."""
     import shutil
     import glob
     import datetime
     db = os.path.join(BASE_DIR, 'db.sqlite3')
     if not os.path.exists(db):
         return
-    bdir = os.path.join(BASE_DIR, 'backups')
-    os.makedirs(bdir, exist_ok=True)
     ts = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
-    try:
-        shutil.copy2(db, os.path.join(bdir, 'db_' + ts + '.sqlite3'))
-    except OSError:
-        return
-    # son 15 yedeği tut, eskileri sil (RESET yedekleri korunur)
-    files = sorted(glob.glob(os.path.join(bdir, 'db_2*.sqlite3')))
-    for f in files[:-15]:
+    for bdir in backup_dirs():
         try:
-            os.remove(f)
+            os.makedirs(bdir, exist_ok=True)
+            shutil.copy2(db, os.path.join(bdir, 'db_' + ts + '.sqlite3'))
+            # her konumda son KEEP_BACKUPS yedeği tut
+            files = sorted(glob.glob(os.path.join(bdir, 'db_2*.sqlite3')))
+            for f in files[:-KEEP_BACKUPS]:
+                try:
+                    os.remove(f)
+                except OSError:
+                    pass
         except OSError:
+            continue
+
+
+def periodic_backup(interval=7200):
+    """Uygulama açıkken her 2 saatte bir otomatik yedek al (yeniden başlatmasan da)."""
+    while True:
+        time.sleep(interval)
+        try:
+            backup_db()
+        except Exception:
             pass
 
 
@@ -98,8 +130,10 @@ def wait_until_ready(timeout=20):
 
 
 def main():
-    # Açılışta otomatik yedek al (veri kaybına karşı)
+    # Açılışta otomatik yedek al (veri kaybına karşı) — güvenli konumlara
     backup_db()
+    # Uygulama açık kaldıkça periyodik yedek (her 2 saat)
+    threading.Thread(target=periodic_backup, daemon=True).start()
 
     # Sunucuyu arka plan thread'inde başlat (uygulama kapanınca o da kapanır)
     t = threading.Thread(target=run_server, daemon=True)
