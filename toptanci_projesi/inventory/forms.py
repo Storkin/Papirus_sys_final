@@ -48,7 +48,7 @@ class ProductForm(forms.ModelForm):
         fields = [
             'name', 'category', 'price', 'manufacturer',
             'stock_quantity', 'unit', 'barcode',
-            'tax_rate', 'supplier', 'shelf_location', 'min_stock'
+            'tax_rate', 'supplier', 'shelf_location', 'min_stock', 'track_stock'
         ]
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control'}),
@@ -60,6 +60,7 @@ class ProductForm(forms.ModelForm):
             'supplier': forms.TextInput(attrs={'class': 'form-control'}),
             'shelf_location': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'A1, B3...'}),
             'min_stock': forms.NumberInput(attrs={'class': 'form-control'}),
+            'track_stock': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
 
 

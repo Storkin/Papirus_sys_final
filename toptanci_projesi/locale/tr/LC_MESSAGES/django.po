@@ -689,6 +689,30 @@ msgstr "Uygulamayı Güncelle"
 msgid "Double-click to edit the price"
 msgstr "Fiyatı düzenlemek için çift tıklayın"
 
+msgid "Available"
+msgstr "Mevcut"
+
+msgid "Settings"
+msgstr "Ayarlar"
+
+msgid "Settings saved."
+msgstr "Ayarlar kaydedildi."
+
+msgid "Stock Tracking"
+msgstr "Stok Takibi"
+
+msgid "Track Stock"
+msgstr "Stok Takibi Yap"
+
+msgid "Track stock quantities"
+msgstr "Stok miktarlarını takip et"
+
+msgid "When ON, sales check and reduce stock, and low-stock warnings work. When OFF, stock quantities are ignored everywhere — every product simply shows as \"Available\". Ideal for shops that do not count stock."
+msgstr "Açıkken satışlarda stok kontrol edilir ve düşülür, düşük stok uyarıları çalışır. Kapalıyken stok miktarları her yerde yok sayılır — her ürün sadece \"Mevcut\" görünür. Stok saymayan dükkanlar için idealdir."
+
+msgid "Tip: You can also turn tracking off for specific products only (from the product edit page), while keeping it on for others."
+msgstr "İpucu: Stok takibini sadece belirli ürünler için de kapatabilirsin (ürün düzenleme sayfasından), diğerlerinde açık kalır."
+
 msgid "This downloads the latest version from GitHub and applies it. Your data (products, sales) is preserved."
 msgstr "Bu işlem GitHub'dan en son sürümü indirir ve uygular. Verileriniz (ürünler, satışlar) korunur."
 

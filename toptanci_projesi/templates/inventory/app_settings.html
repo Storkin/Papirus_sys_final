@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+{% load i18n %}
+
+{% block content %}
+<div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <h1 class="h3 mb-0 text-gray-800">
+        <i class="fas fa-sliders-h mr-2 text-primary"></i> {% trans "Settings" %}
+    </h1>
+</div>
+
+{% if saved %}
+<div class="alert alert-success"><i class="fas fa-check-circle mr-1"></i> {% trans "Settings saved." %}</div>
+{% endif %}
+
+<div class="row">
+    <div class="col-lg-7">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">{% trans "Stock Tracking" %}</h6>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="custom-control custom-switch mb-2">
+                        <input type="checkbox" class="custom-control-input" id="stockTracking"
+                               name="stock_tracking_enabled" {% if setting.stock_tracking_enabled %}checked{% endif %}>
+                        <label class="custom-control-label font-weight-bold" for="stockTracking">
+                            {% trans "Track stock quantities" %}
+                        </label>
+                    </div>
+                    <p class="text-muted small">
+                        <i class="fas fa-info-circle mr-1"></i>
+                        {% trans "When ON, sales check and reduce stock, and low-stock warnings work. When OFF, stock quantities are ignored everywhere — every product simply shows as \"Available\". Ideal for shops that do not count stock." %}
+                    </p>
+                    <p class="text-muted small mb-3">
+                        <i class="fas fa-lightbulb mr-1"></i>
+                        {% trans "Tip: You can also turn tracking off for specific products only (from the product edit page), while keeping it on for others." %}
+                    </p>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save mr-1"></i> {% trans "Save" %}
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

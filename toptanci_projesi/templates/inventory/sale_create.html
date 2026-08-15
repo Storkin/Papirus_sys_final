@@ -159,10 +159,12 @@ const products = {
         price: {{ p.price|unlocalize }},
         stock: {{ p.stock_quantity|unlocalize }},
         unit: "{{ p.unit|escapejs }}",
-        barcode: "{{ p.barcode|escapejs }}"
+        barcode: "{{ p.barcode|escapejs }}",
+        tracked: {% if global_tracking and p.track_stock %}true{% else %}false{% endif %}
     },
     {% endfor %}
 };
+const AVAILABLE_TXT = "{% trans 'Available' %}";
 
 const barcodeMap = {};
 Object.entries(products).forEach(([id, p]) => {
@@ -212,18 +214,27 @@ function updateStockCells() {
         const idx = sel.dataset.idx;
         const p = products[sel.value];
         if (!p) return;
-        const cartQty = getCartQty(sel.value);
-        const remaining = p.stock - cartQty;
         const cell = document.getElementById(`stock_${idx}`);
         const row  = document.getElementById(`row_${idx}`);
         const qtyInput = document.querySelector(`.qty-input[data-idx="${idx}"]`);
+        // Stok takibi kapalı ürün: her zaman "Mevcut", aşım yok
+        if (!p.tracked) {
+            if (cell) {
+                cell.textContent = AVAILABLE_TXT;
+                cell.className = 'align-middle text-center text-success font-weight-bold stock-cell';
+            }
+            row.classList.remove('stock-over');
+            if (qtyInput) qtyInput.classList.remove('is-invalid');
+            return;
+        }
+        const cartQty = getCartQty(sel.value);
+        const remaining = p.stock - cartQty;
         if (cell) {
             cell.textContent = `${remaining} ${p.unit}`;
             cell.className = remaining >= 0
                 ? 'align-middle text-center text-success font-weight-bold stock-cell'
                 : 'align-middle text-center text-danger font-weight-bold stock-cell';
         }
-        // Stok aşım uyarısı - satırı sarıya çevir
         if (remaining < 0) {
             row.classList.add('stock-over');
             if (qtyInput) qtyInput.classList.add('is-invalid');
@@ -278,10 +289,10 @@ function buildRow(productId, initQty = 1, initPrice = null, flash = false) {
     const usedPrice = (initPrice !== null && initPrice !== undefined) ? initPrice : (p ? p.price : 0);
 
     const options = Object.entries(products).map(([id, pr]) =>
-        `<option value="${id}" ${id == productId ? 'selected' : ''}>${pr.name} (${pr.stock} ${pr.unit})</option>`
+        `<option value="${id}" ${id == productId ? 'selected' : ''}>${pr.name} (${pr.tracked ? pr.stock + ' ' + pr.unit : AVAILABLE_TXT})</option>`
     ).join('');
 
-    const stockText  = p ? `${p.stock} ${p.unit}` : '—';
+    const stockText  = p ? (p.tracked ? `${p.stock} ${p.unit}` : AVAILABLE_TXT) : '—';
     const stockClass = p ? 'text-success font-weight-bold' : '';
 
     const tr = document.createElement('tr');
@@ -303,7 +314,7 @@ function buildRow(productId, initQty = 1, initPrice = null, flash = false) {
                 </div>
                 <input type="number" name="quantity_${idx}"
                        class="form-control form-control-sm qty-input text-center"
-                       data-idx="${idx}" value="${initQty}" min="1" ${p ? `max="${p.stock}"` : ''}>
+                       data-idx="${idx}" value="${initQty}" min="1" ${p && p.tracked ? `max="${p.stock}"` : ''}>
                 <div class="input-group-append">
                     <button type="button" class="btn btn-outline-secondary qty-btn btn-delta" data-idx="${idx}" data-delta="1" tabindex="-1">+</button>
                     <button type="button" class="btn btn-outline-primary qty-btn-bulk btn-delta" data-idx="${idx}" data-delta="5" tabindex="-1" title="+5 ekle">+5</button>
@@ -342,9 +353,9 @@ function buildRow(productId, initQty = 1, initPrice = null, flash = false) {
         const stockCell  = document.getElementById(`stock_${idx}`);
         if (pr) {
             priceInput.value = pr.price.toFixed(2);
-            qtyInput.max     = pr.stock;
+            qtyInput.max     = pr.tracked ? pr.stock : '';
             qtyInput.value   = 1;
-            stockCell.textContent = `${pr.stock} ${pr.unit}`;
+            stockCell.textContent = pr.tracked ? `${pr.stock} ${pr.unit}` : AVAILABLE_TXT;
         } else {
             priceInput.value = '';
             qtyInput.max     = '';
@@ -439,7 +450,8 @@ function addOrIncrement(productId) {
     if (existingIdx !== null) {
         const qtyInput   = document.querySelector(`.qty-input[data-idx="${existingIdx}"]`);
         const currentQty = parseInt(qtyInput.value) || 0;
-        const remaining  = p.stock - getCartQty(productId);
+        // Stok takibi kapalıysa sınırsız artır; açıksa kalan stoğu kontrol et
+        const remaining  = p.tracked ? (p.stock - getCartQty(productId)) : Infinity;
         if (remaining > 0) {
             qtyInput.value = currentQty + 1;
             recalcRow(parseInt(existingIdx));

@@ -17,12 +17,14 @@ class Product(models.Model):
     supplier = models.CharField(max_length=255, blank=True, default="", verbose_name=_("Supplier"))
     shelf_location = models.CharField(max_length=50, blank=True, default="", verbose_name=_("Shelf Location"))
     min_stock = models.IntegerField(default=0, verbose_name=_("Minimum Stock"))
+    track_stock = models.BooleanField(default=True, verbose_name=_("Track Stock"))
 
     def __str__(self):
         return f"{self.name} - {self.manufacturer}"
 
     def is_low_stock(self):
-        return self.stock_quantity <= self.min_stock
+        # Stok takibi kapalıysa (ürün bazında) düşük stok uyarısı olmaz
+        return self.track_stock and self.stock_quantity <= self.min_stock
 
 
 class Customer(models.Model):
@@ -135,6 +137,20 @@ class ReferenceBarcode(models.Model):
 
     class Meta:
         ordering = ['name']
+
+
+class AppSetting(models.Model):
+    """Tek satırlık genel ayar. stock_tracking_enabled = ana stok takibi şalteri.
+    Kapalıysa hiçbir üründe stok umursanmaz (hepsi 'Mevcut')."""
+    stock_tracking_enabled = models.BooleanField(default=True, verbose_name=_("Stock Tracking"))
+
+    @classmethod
+    def get(cls):
+        obj, _created = cls.objects.get_or_create(pk=1)
+        return obj
+
+    def __str__(self):
+        return "Uygulama Ayarları"
 
 
 @receiver(post_save, sender=Product)

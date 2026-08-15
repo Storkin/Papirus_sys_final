@@ -688,6 +688,30 @@ msgstr "Update Application"
 msgid "Double-click to edit the price"
 msgstr "Double-click to edit the price"
 
+msgid "Available"
+msgstr "Available"
+
+msgid "Settings"
+msgstr "Settings"
+
+msgid "Settings saved."
+msgstr "Settings saved."
+
+msgid "Stock Tracking"
+msgstr "Stock Tracking"
+
+msgid "Track Stock"
+msgstr "Track Stock"
+
+msgid "Track stock quantities"
+msgstr "Track stock quantities"
+
+msgid "When ON, sales check and reduce stock, and low-stock warnings work. When OFF, stock quantities are ignored everywhere — every product simply shows as \"Available\". Ideal for shops that do not count stock."
+msgstr "When ON, sales check and reduce stock, and low-stock warnings work. When OFF, stock quantities are ignored everywhere — every product simply shows as \"Available\". Ideal for shops that do not count stock."
+
+msgid "Tip: You can also turn tracking off for specific products only (from the product edit page), while keeping it on for others."
+msgstr "Tip: You can also turn tracking off for specific products only (from the product edit page), while keeping it on for others."
+
 msgid "This downloads the latest version from GitHub and applies it. Your data (products, sales) is preserved."
 msgstr "This downloads the latest version from GitHub and applies it. Your data (products, sales) is preserved."
 

@@ -181,7 +181,13 @@
                                     <i class="fas fa-pen fa-xs text-muted ml-1" style="opacity:.4"></i>
                                 </td>
                                 <td class="align-middle">{{ product.supplier }}</td>
-                                <td class="align-middle"><strong>{{ product.stock_quantity }}</strong> {{ product.unit }}</td>
+                                <td class="align-middle">
+                                    {% if stock_tracking and product.track_stock %}
+                                        <strong>{{ product.stock_quantity }}</strong> {{ product.unit }}
+                                    {% else %}
+                                        <span class="badge badge-success">{% trans "Available" %}</span>
+                                    {% endif %}
+                                </td>
                                 <td class="text-right align-middle">
                                     <button type="button" class="btn btn-success btn-circle btn-sm" title="{% trans 'Increase Stock' %}"
                                             data-toggle="modal" data-target="#increaseModal{{ product.pk }}">

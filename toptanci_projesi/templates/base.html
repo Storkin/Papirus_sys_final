@@ -163,6 +163,10 @@
                             <div class="dropdown-menu dropdown-menu-right shadow animated--grow-in" aria-labelledby="userDropdown">
                                 {% if user.is_superuser %}
                                 <h6 class="dropdown-header">{% trans "Administration" %}</h6>
+                                <a class="dropdown-item" href="{% url 'app_settings' %}">
+                                    <i class="fas fa-sliders-h fa-sm fa-fw mr-2 text-gray-400"></i>
+                                    {% trans "Settings" %}
+                                </a>
                                 <a class="dropdown-item" href="{% url 'register' %}">
                                     <i class="fas fa-user-plus fa-sm fa-fw mr-2 text-gray-400"></i>
                                     {% trans "Add User" %}

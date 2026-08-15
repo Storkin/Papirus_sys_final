@@ -3,7 +3,7 @@ from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import login
 from django.contrib.auth.views import LoginView
 from django.contrib.auth.decorators import login_required
-from .models import Product, StockMovement, Customer, Sale, SaleItem, ReferenceBarcode
+from .models import Product, StockMovement, Customer, Sale, SaleItem, ReferenceBarcode, AppSetting
 from .forms import ProductForm, CustomerForm
 from django.http import HttpResponseRedirect, HttpResponse, JsonResponse
 from django.urls import reverse
@@ -158,6 +158,7 @@ def product_list(request):
         'low_stock': low_stock,
         'current_sort': sort,
         'sort_params': sort_params,
+        'stock_tracking': AppSetting.get().stock_tracking_enabled,
     }
     return render(request, 'inventory/product_list.html', context)
     
@@ -367,8 +368,17 @@ def sale_list(request):
 
 @login_required
 def sale_create(request):
-    products = Product.objects.filter(stock_quantity__gt=0).order_by('name')
+    from django.db.models import Q
+    global_tracking = AppSetting.get().stock_tracking_enabled
+    # Takip açıksa: stokta olanlar + takibi kapalı ürünler. Takip kapalıysa: hepsi.
+    if global_tracking:
+        products = Product.objects.filter(Q(stock_quantity__gt=0) | Q(track_stock=False)).order_by('name')
+    else:
+        products = Product.objects.all().order_by('name')
     customers = Customer.objects.order_by('name')
+
+    def is_tracked(product):
+        return global_tracking and product.track_stock
 
     if request.method == 'POST':
         customer_id = request.POST.get('customer')
@@ -397,15 +407,17 @@ def sale_create(request):
             return render(request, 'inventory/sale_create.html', {
                 'products': products,
                 'customers': customers,
+                'global_tracking': global_tracking,
                 'error': 'En az bir ürün eklemelisiniz.',
             })
 
-        # Stok yeterliliği kontrolü
+        # Stok yeterliliği kontrolü (yalnızca stok takibi açık ürünler için)
         for item in items:
-            if item['product'].stock_quantity < item['quantity']:
+            if is_tracked(item['product']) and item['product'].stock_quantity < item['quantity']:
                 return render(request, 'inventory/sale_create.html', {
                     'products': products,
                     'customers': customers,
+                    'global_tracking': global_tracking,
                     'error': f'"{item["product"].name}" için yeterli stok yok. Mevcut: {item["product"].stock_quantity}',
                 })
 
@@ -427,18 +439,19 @@ def sale_create(request):
                 quantity=item['quantity'],
                 unit_price=item['unit_price'],
             )
-            # Stok düş
+            # Stok düş — yalnızca stok takibi açık ürünler için
             product = item['product']
-            old_stock = product.stock_quantity
-            product.stock_quantity -= item['quantity']
-            product.save()
-            StockMovement.objects.create(
-                product=product,
-                change_amount=-item['quantity'],
-                old_stock=old_stock,
-                new_stock=product.stock_quantity,
-                note=f'Satış #{sale.pk}',
-            )
+            if is_tracked(product):
+                old_stock = product.stock_quantity
+                product.stock_quantity -= item['quantity']
+                product.save()
+                StockMovement.objects.create(
+                    product=product,
+                    change_amount=-item['quantity'],
+                    old_stock=old_stock,
+                    new_stock=product.stock_quantity,
+                    note=f'Satış #{sale.pk}',
+                )
 
         # Müşteri borcuna ekle
         if add_to_debt and customer:
@@ -450,6 +463,7 @@ def sale_create(request):
     return render(request, 'inventory/sale_create.html', {
         'products': products,
         'customers': customers,
+        'global_tracking': global_tracking,
     })
 
 
@@ -888,6 +902,20 @@ def reference_import_template(request):
     writer.writerow(['8680000000001', 'Örnek A4 Kağıt', 'Papirus', 'Kağıt', 'paket', '20'])
     writer.writerow(['8680000000002', 'Örnek Tükenmez Kalem', 'Bic', 'Kalem', 'adet', '20'])
     return response
+
+
+# ─── Ayarlar ────────────────────────────────────────────────────────────────────
+
+@patron_required
+def app_settings(request):
+    """Genel uygulama ayarları — şimdilik: ana stok takibi şalteri."""
+    setting = AppSetting.get()
+    saved = False
+    if request.method == 'POST':
+        setting.stock_tracking_enabled = request.POST.get('stock_tracking_enabled') == 'on'
+        setting.save()
+        saved = True
+    return render(request, 'inventory/app_settings.html', {'setting': setting, 'saved': saved})
 
 
 # ─── Uygulama Güncelleme (uygulama içinden) ─────────────────────────────────────
