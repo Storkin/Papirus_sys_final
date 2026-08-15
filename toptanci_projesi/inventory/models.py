@@ -7,9 +7,9 @@ from datetime import date
 
 class Product(models.Model):
     name = models.CharField(max_length=255, verbose_name=_("Product Name"))
-    category = models.CharField(max_length=255, verbose_name=_("Category"))
+    category = models.CharField(max_length=255, blank=True, default="", verbose_name=_("Category"))
     price = models.FloatField(verbose_name=_("Price"))
-    manufacturer = models.CharField(max_length=255, verbose_name=_("Manufacturer"))
+    manufacturer = models.CharField(max_length=255, blank=True, default="", verbose_name=_("Manufacturer"))
     stock_quantity = models.IntegerField(default=0, verbose_name=_("Stock Quantity"))
     unit = models.CharField(max_length=50, default="adet", verbose_name=_("Unit"))
     barcode = models.CharField(max_length=100, blank=True, default="", verbose_name=_("Barcode"))
