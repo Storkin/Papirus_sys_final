@@ -691,6 +691,51 @@ msgstr "Double-click to edit the price"
 msgid "Available"
 msgstr "Available"
 
+msgid "Sales Report"
+msgstr "Sales Report"
+
+msgid "From"
+msgstr "From"
+
+msgid "To"
+msgstr "To"
+
+msgid "Show"
+msgstr "Show"
+
+msgid "Today"
+msgstr "Today"
+
+msgid "This Week"
+msgstr "This Week"
+
+msgid "This Month"
+msgstr "This Month"
+
+msgid "Total Revenue"
+msgstr "Total Revenue"
+
+msgid "Number of Sales"
+msgstr "Number of Sales"
+
+msgid "Items Sold"
+msgstr "Items Sold"
+
+msgid "Daily Breakdown"
+msgstr "Daily Breakdown"
+
+msgid "Revenue"
+msgstr "Revenue"
+
+msgid "Sales"
+msgstr "Sales"
+
+msgid "No sales in this period."
+msgstr "No sales in this period."
+
+msgid "No sales."
+msgstr "No sales."
+
 msgid "Settings"
 msgstr "Settings"
 

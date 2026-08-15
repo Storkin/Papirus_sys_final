@@ -692,6 +692,51 @@ msgstr "Fiyatı düzenlemek için çift tıklayın"
 msgid "Available"
 msgstr "Mevcut"
 
+msgid "Sales Report"
+msgstr "Satış Raporu"
+
+msgid "From"
+msgstr "Başlangıç"
+
+msgid "To"
+msgstr "Bitiş"
+
+msgid "Show"
+msgstr "Göster"
+
+msgid "Today"
+msgstr "Bugün"
+
+msgid "This Week"
+msgstr "Bu Hafta"
+
+msgid "This Month"
+msgstr "Bu Ay"
+
+msgid "Total Revenue"
+msgstr "Toplam Ciro"
+
+msgid "Number of Sales"
+msgstr "Satış Adedi"
+
+msgid "Items Sold"
+msgstr "Satılan Ürün Adedi"
+
+msgid "Daily Breakdown"
+msgstr "Günlük Döküm"
+
+msgid "Revenue"
+msgstr "Ciro"
+
+msgid "Sales"
+msgstr "Satış"
+
+msgid "No sales in this period."
+msgstr "Bu dönemde satış yok."
+
+msgid "No sales."
+msgstr "Satış yok."
+
 msgid "Settings"
 msgstr "Ayarlar"
 

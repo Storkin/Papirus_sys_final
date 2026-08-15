@@ -1,0 +1,130 @@
+{% extends 'base.html' %}
+{% load i18n %}
+{% load custom_filters %}
+
+{% block content %}
+<div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <h1 class="h3 mb-0 text-gray-800">
+        <i class="fas fa-chart-line mr-2 text-primary"></i> {% trans "Sales Report" %}
+    </h1>
+    <a href="{% url 'sale_list' %}" class="btn btn-secondary btn-sm">
+        <i class="fas fa-receipt mr-1"></i> {% trans "All Sales" %}
+    </a>
+</div>
+
+<!-- Tarih filtresi -->
+<div class="card shadow mb-4">
+    <div class="card-body py-3">
+        <form method="get" class="form-inline">
+            <label class="mr-2 font-weight-bold">{% trans "From" %}</label>
+            <input type="date" name="start" value="{{ start|date:'Y-m-d' }}" class="form-control form-control-sm mr-3">
+            <label class="mr-2 font-weight-bold">{% trans "To" %}</label>
+            <input type="date" name="end" value="{{ end|date:'Y-m-d' }}" class="form-control form-control-sm mr-3">
+            <button type="submit" class="btn btn-primary btn-sm mr-3">
+                <i class="fas fa-search mr-1"></i> {% trans "Show" %}
+            </button>
+            <div class="btn-group btn-group-sm">
+                <a href="?preset=today" class="btn btn-outline-secondary">{% trans "Today" %}</a>
+                <a href="?preset=week" class="btn btn-outline-secondary">{% trans "This Week" %}</a>
+                <a href="?preset=month" class="btn btn-outline-secondary">{% trans "This Month" %}</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Özet kartları -->
+<div class="row mb-4">
+    <div class="col-md-4 mb-3">
+        <div class="card border-left-success shadow h-100 py-2"><div class="card-body">
+            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">{% trans "Total Revenue" %}</div>
+            <div class="h4 mb-0 font-weight-bold text-gray-800">{{ total_revenue|format_money }} ₺</div>
+        </div></div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="card border-left-primary shadow h-100 py-2"><div class="card-body">
+            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">{% trans "Number of Sales" %}</div>
+            <div class="h4 mb-0 font-weight-bold text-gray-800">{{ sale_count }}</div>
+        </div></div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="card border-left-info shadow h-100 py-2"><div class="card-body">
+            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">{% trans "Items Sold" %}</div>
+            <div class="h4 mb-0 font-weight-bold text-gray-800">{{ total_qty }}</div>
+        </div></div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Ürün kırılımı -->
+    <div class="col-lg-7 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="fas fa-boxes mr-1"></i> {% trans "Products Sold" %}
+                </h6>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="thead-light">
+                            <tr>
+                                <th>{% trans "Product" %}</th>
+                                <th class="text-center">{% trans "Quantity" %}</th>
+                                <th class="text-right">{% trans "Total" %}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for it in items %}
+                            <tr>
+                                <td>{{ it.product__name }}</td>
+                                <td class="text-center"><span class="badge badge-secondary">{{ it.adet }}</span></td>
+                                <td class="text-right font-weight-bold">{{ it.tutar|format_money }} ₺</td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="3" class="text-center text-muted py-4">
+                                <i class="fas fa-inbox fa-2x mb-2 d-block"></i>{% trans "No sales in this period." %}
+                            </td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Günlük kırılım -->
+    <div class="col-lg-5 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="fas fa-calendar-day mr-1"></i> {% trans "Daily Breakdown" %}
+                </h6>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="thead-light">
+                            <tr>
+                                <th>{% trans "Date" %}</th>
+                                <th class="text-center">{% trans "Sales" %}</th>
+                                <th class="text-right">{% trans "Revenue" %}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for d in daily %}
+                            <tr>
+                                <td>{{ d.gun|date:"d.m.Y" }}</td>
+                                <td class="text-center">{{ d.adet }}</td>
+                                <td class="text-right font-weight-bold text-success">{{ d.ciro|format_money }} ₺</td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="3" class="text-center text-muted py-4">{% trans "No sales." %}</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
