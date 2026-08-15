@@ -368,47 +368,21 @@ def sale_list(request):
 
 @login_required
 def sales_report(request):
-    """Tarihe göre satış raporu: seçili aralıkta toplam ciro, satış adedi,
-    günlük kırılım ve hangi ürün kaç adet/kaç TL satılmış."""
-    from django.db.models import Sum, Count, F
-    from django.db.models.functions import TruncDate
+    """Seçili tek gün için satış raporu: toplam ciro, satış adedi ve satılan ürünler."""
+    from django.db.models import Sum, F
     from django.utils import timezone
-    from datetime import datetime, timedelta
+    from datetime import datetime
 
     today = timezone.localdate()
-    preset = request.GET.get('preset', '')
-    if preset == 'today':
-        start = end = today
-    elif preset == 'week':
-        start = today - timedelta(days=today.weekday())
-        end = today
-    elif preset == 'month':
-        start = today.replace(day=1)
-        end = today
-    else:
-        def _parse(s, default):
-            try:
-                return datetime.strptime(s, '%Y-%m-%d').date()
-            except (ValueError, TypeError):
-                return default
-        start = _parse(request.GET.get('start'), today)
-        end = _parse(request.GET.get('end'), start)
-    if end < start:
-        start, end = end, start
+    try:
+        gun = datetime.strptime(request.GET.get('date', ''), '%Y-%m-%d').date()
+    except (ValueError, TypeError):
+        gun = today
 
-    sales = Sale.objects.filter(date__date__gte=start, date__date__lte=end)
+    sales = Sale.objects.filter(date__date=gun)
     total_revenue = sales.aggregate(s=Sum('total_amount'))['s'] or 0
     sale_count = sales.count()
 
-    # Günlük kırılım (tarih | satış adedi | ciro)
-    daily = list(
-        sales.annotate(gun=TruncDate('date'))
-        .values('gun')
-        .annotate(adet=Count('id'), ciro=Sum('total_amount'))
-        .order_by('-gun')
-    )
-
-    # Ürün kırılımı (ürün | toplam adet | toplam tutar)
     items = list(
         SaleItem.objects.filter(sale__in=sales)
         .values('product__name')
@@ -418,11 +392,11 @@ def sales_report(request):
     total_qty = sum(it['adet'] for it in items)
 
     return render(request, 'inventory/sales_report.html', {
-        'start': start, 'end': end,
-        'total_revenue': total_revenue, 'sale_count': sale_count,
+        'gun': gun,
+        'total_revenue': total_revenue,
+        'sale_count': sale_count,
         'total_qty': total_qty,
-        'daily': daily, 'items': items,
-        'is_single_day': start == end,
+        'items': items,
     })
 
 
