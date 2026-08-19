@@ -178,6 +178,12 @@ LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/login/'
 LOGIN_URL = '/login/'
 
+# Dosyadan Aktar önizleme onayı büyük ürün listelerinde (yüzlerce satır) çok
+# sayıda form alanı gönderir; Django'nun varsayılan 1000 alan limitini aşınca
+# "Bad Request (400)" veriyordu. Büyük tedarikçi listelerini (binlerce satır) de
+# rahatça kaldıracak şekilde yükseltiyoruz.
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 20000
+
 # Hataları (500 dahil) errors.log dosyasına yaz — production'da sorun teşhisi için
 LOGGING = {
     'version': 1,
