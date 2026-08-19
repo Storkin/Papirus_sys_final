@@ -181,11 +181,19 @@
                                     <i class="fas fa-pen fa-xs text-muted ml-1" style="opacity:.4"></i>
                                 </td>
                                 <td class="align-middle">{{ product.supplier }}</td>
-                                <td class="align-middle">
+                                <td class="align-middle stock-track-cell" data-pk="{{ product.pk }}">
+                                    <span class="stock-value">
                                     {% if stock_tracking and product.track_stock %}
                                         <strong>{{ product.stock_quantity }}</strong> {{ product.unit }}
                                     {% else %}
                                         <span class="badge badge-success">{% trans "Available" %}</span>
+                                    {% endif %}
+                                    </span>
+                                    {% if stock_tracking %}
+                                    <button type="button" class="btn btn-link btn-sm p-0 ml-1 track-toggle-btn"
+                                            title="{% if product.track_stock %}Bu ürün için stok takibini kapat (her zaman Mevcut göster){% else %}Bu ürün için stok takibini tekrar aç{% endif %}">
+                                        <i class="fas {% if product.track_stock %}fa-toggle-on text-success{% else %}fa-toggle-off text-muted{% endif %}"></i>
+                                    </button>
                                     {% endif %}
                                 </td>
                                 <td class="text-right align-middle">
@@ -424,6 +432,31 @@
         fd.append('csrfmiddlewaretoken', csrf());
         fd.append('price', inp.value);
         navigator.sendBeacon('/products/' + openCell.dataset.pk + '/price/', fd);
+    });
+
+    // Stok takibi tek-tıkla aç/kapat (olay delegasyonu)
+    document.addEventListener('click', function (e) {
+        var btn = e.target.closest('.track-toggle-btn');
+        if (!btn) return;
+        var cell = btn.closest('.stock-track-cell');
+        var pk = cell.dataset.pk;
+        fetch('/products/' + pk + '/toggle-tracking/', {
+            method: 'POST',
+            headers: { 'X-CSRFToken': csrf(), 'Content-Type': 'application/x-www-form-urlencoded' }
+        }).then(function (r) { return r.json(); }).then(function (d) {
+            if (!d.ok) return;
+            var valueSpan = cell.querySelector('.stock-value');
+            var icon = btn.querySelector('i');
+            if (d.track_stock) {
+                valueSpan.innerHTML = '<strong>' + d.stock_quantity + '</strong> ' + d.unit;
+                icon.className = 'fas fa-toggle-on text-success';
+                btn.title = 'Bu ürün için stok takibini kapat (her zaman Mevcut göster)';
+            } else {
+                valueSpan.innerHTML = '<span class="badge badge-success">{% trans "Available" %}</span>';
+                icon.className = 'fas fa-toggle-off text-muted';
+                btn.title = 'Bu ürün için stok takibini tekrar aç';
+            }
+        });
     });
 })();
 </script>

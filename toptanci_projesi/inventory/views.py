@@ -222,6 +222,22 @@ def product_update_price(request, pk):
 
 
 @login_required
+def product_toggle_tracking(request, pk):
+    """Ürün listesinden tek tıkla, o ürüne özel stok takibini aç/kapat. AJAX."""
+    if request.method != 'POST':
+        return JsonResponse({'ok': False}, status=405)
+    product = get_object_or_404(Product, pk=pk)
+    product.track_stock = not product.track_stock
+    product.save(update_fields=['track_stock'])
+    return JsonResponse({
+        'ok': True,
+        'track_stock': product.track_stock,
+        'stock_quantity': product.stock_quantity,
+        'unit': product.unit,
+    })
+
+
+@login_required
 def product_delete(request, pk):
     product = get_object_or_404(Product, pk=pk)
     if request.method == 'POST':

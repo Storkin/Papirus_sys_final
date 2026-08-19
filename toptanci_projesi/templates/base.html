@@ -312,6 +312,36 @@
         input.addEventListener('blur', function () { setTimeout(close, 150); });
         window.addEventListener('resize', function () { if (dd.style.display !== 'none') position(); });
     }
+
+    // Toplu veri giriş tablolarında: sayı kutusunda aşağı/yukarı ok tuşu değeri
+    // artırıp azaltmasın, bunun yerine bir alttaki/üstteki satırın aynı
+    // sütunundaki kutuya odaklansın (Excel gibi). Olay delegasyonu kullanır,
+    // sonradan JS ile eklenen satırlarda da otomatik çalışır.
+    function enableColumnArrowNav(containerSelector) {
+        var container = document.querySelector(containerSelector);
+        if (!container) return;
+        container.addEventListener('keydown', function (e) {
+            if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+            var input = e.target;
+            if (input.tagName !== 'INPUT' && input.tagName !== 'SELECT') return;
+            var cell = input.closest('td');
+            var row = input.closest('tr');
+            if (!cell || !row) return;
+            e.preventDefault();
+            var cellIndex = Array.prototype.indexOf.call(row.children, cell);
+            var targetRow = e.key === 'ArrowDown' ? row.nextElementSibling : row.previousElementSibling;
+            while (targetRow) {
+                var targetCell = targetRow.children[cellIndex];
+                var targetInput = targetCell ? targetCell.querySelector('input, select') : null;
+                if (targetInput) {
+                    targetInput.focus();
+                    if (targetInput.select) targetInput.select();
+                    return;
+                }
+                targetRow = e.key === 'ArrowDown' ? targetRow.nextElementSibling : targetRow.previousElementSibling;
+            }
+        });
+    }
     </script>
     {% block extra_js %}{% endblock %}
 </body>
