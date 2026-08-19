@@ -160,6 +160,24 @@ class AppSetting(models.Model):
         return "Uygulama Ayarları"
 
 
+class MarkupRule(models.Model):
+    """Alış fiyatı aralığına göre kademeli kâr kuralı. Tavsiye fiyat hesaplanırken
+    alış fiyatı hangi aralığa (min_price <= fiyat < max_price) düşerse o kuralın
+    yüzdesi + sabit ekleme kullanılır. max_price boşsa (None) sınırsız üst sınır
+    demektir. Hiçbir kural eşleşmezse AppSetting.default_markup_percent kullanılır."""
+    min_price = models.FloatField(default=0, verbose_name=_("Min Purchase Price"))
+    max_price = models.FloatField(null=True, blank=True, verbose_name=_("Max Purchase Price"))
+    percent = models.FloatField(default=35.0, verbose_name=_("Markup (%)"))
+    flat_addition = models.FloatField(default=0.0, verbose_name=_("Flat Addition (₺)"))
+
+    class Meta:
+        ordering = ['min_price']
+
+    def __str__(self):
+        top = f"{self.max_price:.0f}" if self.max_price is not None else "∞"
+        return f"{self.min_price:.0f}–{top} ₺ → %{self.percent:.0f} +{self.flat_addition:.0f}₺"
+
+
 @receiver(post_save, sender=Product)
 def learn_barcode(sender, instance, **kwargs):
     """Oto-öğrenme: barkodu olan her ürün referans hafızaya yazılır/güncellenir."""

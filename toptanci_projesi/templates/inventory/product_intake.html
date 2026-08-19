@@ -96,6 +96,25 @@
 let rowIndex = 0;
 const tbody = document.getElementById('rowsBody');
 const MARKUP_PERCENT = {{ markup_percent|unlocalize }};
+const MARKUP_RULES = {{ markup_rules_json|safe }};
+
+// Alış fiyatından tavsiye fiyat: kademeli kurallar varsa (aralığa göre % + sabit
+// ekleme) onu kullanır, yoksa Ayarlar'daki taban yüzdeyi kullanır. 5'in katına
+// yukarı yuvarlar. (Sunucu tarafındaki suggested_price() ile aynı mantık.)
+function calcSuggestedPrice(buy) {
+    if (!buy || buy <= 0) return 0;
+    let matched = null;
+    for (const r of MARKUP_RULES) {
+        if (buy >= r.min_price && (r.max_price === null || buy < r.max_price)) matched = r;
+    }
+    let raw;
+    if (matched) {
+        raw = buy * (1 + matched.percent / 100) + matched.flat_addition;
+    } else {
+        raw = buy * (1 + MARKUP_PERCENT / 100);
+    }
+    return Math.ceil(raw / 5) * 5;
+}
 
 function updateCount() {
     const n = tbody.querySelectorAll('tr').length;
@@ -136,8 +155,7 @@ function addRow(data = {}) {
         if (sellTouched) return;
         const buy = parseFloat(this.value);
         if (!buy || buy <= 0) { sellInput.value = ''; return; }
-        const raw = buy * (1 + MARKUP_PERCENT / 100);
-        sellInput.value = (Math.ceil(raw / 5) * 5).toFixed(2);
+        sellInput.value = calcSuggestedPrice(buy).toFixed(2);
     });
     updateCount();
     return idx;

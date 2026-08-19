@@ -3,7 +3,7 @@ from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import login
 from django.contrib.auth.views import LoginView
 from django.contrib.auth.decorators import login_required
-from .models import Product, StockMovement, Customer, Sale, SaleItem, ReferenceBarcode, AppSetting
+from .models import Product, StockMovement, Customer, Sale, SaleItem, ReferenceBarcode, AppSetting, MarkupRule
 from .forms import ProductForm, CustomerForm
 from django.http import HttpResponseRedirect, HttpResponse, JsonResponse
 from django.urls import reverse
@@ -771,6 +771,7 @@ def product_import(request):
             'stok adı', 'ürün adi', 'stokadı',
         }
         markup = AppSetting.get().default_markup_percent
+        markup_rules = _get_markup_rules()
         preview = []
         for row in rows:
             # Ad: 'Ürün Adı' veya 'Stok Adı' (farklı tedarikçi/program başlıkları)
@@ -800,7 +801,7 @@ def product_import(request):
                 'tax_rate': _imp_get(row, 'tax_rate', 'KDV Oranı', default='20'),
                 'qty': qty,
                 'purchase_price': purchase,
-                'suggested_price': suggested_price(purchase, markup),
+                'suggested_price': suggested_price(purchase, markup_rules, markup),
                 'exists': bool(existing),
                 'current_stock': existing.stock_quantity if existing else 0,
                 'current_track_stock': existing.track_stock if existing else True,
@@ -871,9 +872,11 @@ def product_intake(request):
 
         saved = {'added': added, 'updated': updated, 'skipped': skipped}
 
+    import json
     return render(request, 'inventory/product_intake.html', {
         'saved': saved,
         'markup_percent': AppSetting.get().default_markup_percent,
+        'markup_rules_json': json.dumps(_get_markup_rules()),
     })
 
 
@@ -1024,9 +1027,12 @@ def reference_import_template(request):
 
 # ─── Ayarlar ────────────────────────────────────────────────────────────────────
 
-def suggested_price(purchase_price, markup_percent):
-    """Alış fiyatından tavsiye satış fiyatı: kâr marjı ekle, 5'in katına yukarı
-    yuvarla (ör. 10 TL alış + %35 -> 13.5 -> 15 TL; 100 TL alış -> 135 -> 135 TL)."""
+def suggested_price(purchase_price, rules, fallback_percent):
+    """Alış fiyatından tavsiye satış fiyatı. Kademeli kurallar (rules) varsa ve
+    alış fiyatı bir kuralın aralığına (min_price <= fiyat < max_price) düşerse
+    o kuralın yüzdesi + sabit ekleme kullanılır; hiçbiri eşleşmezse
+    fallback_percent (Ayarlar'daki taban kâr marjı) kullanılır. Sonuç 5'in
+    katına yukarı yuvarlanır (ör. 13.5 -> 15 TL)."""
     import math
     try:
         purchase_price = float(purchase_price)
@@ -1034,13 +1040,25 @@ def suggested_price(purchase_price, markup_percent):
         return 0.0
     if purchase_price <= 0:
         return 0.0
-    raw = purchase_price * (1 + (markup_percent or 0) / 100)
+    matched = None
+    for r in rules:  # min_price artan sırada; en son eşleşen (en spesifik) kazanır
+        if purchase_price >= r['min_price'] and (r['max_price'] is None or purchase_price < r['max_price']):
+            matched = r
+    if matched:
+        raw = purchase_price * (1 + matched['percent'] / 100) + matched['flat_addition']
+    else:
+        raw = purchase_price * (1 + (fallback_percent or 0) / 100)
     return math.ceil(raw / 5) * 5
+
+
+def _get_markup_rules():
+    return list(MarkupRule.objects.order_by('min_price').values('min_price', 'max_price', 'percent', 'flat_addition'))
 
 
 @patron_required
 def app_settings(request):
-    """Genel uygulama ayarları — stok takibi şalteri + tavsiye fiyat kâr marjı."""
+    """Genel uygulama ayarları — stok takibi şalteri, taban kâr marjı ve
+    fiyat aralığına göre kademeli kâr kuralları."""
     setting = AppSetting.get()
     saved = False
     if request.method == 'POST':
@@ -1052,8 +1070,41 @@ def app_settings(request):
         except (TypeError, ValueError):
             pass
         setting.save()
+
+        # Kademeli kurallar: gönderilen listeyle tamamen değiştir. JS'te bir
+        # satır silinince index'ler boşluklu kalabileceği için (0,1,2 -> 0,2)
+        # sıralı while yerine tüm 'min_N' anahtarlarını tarayıp N'leri topluyoruz.
+        MarkupRule.objects.all().delete()
+        indices = set()
+        for key in request.POST:
+            if key.startswith('min_'):
+                try:
+                    indices.add(int(key.split('_', 1)[1]))
+                except ValueError:
+                    pass
+        for i in sorted(indices):
+            min_raw = request.POST.get(f'min_{i}', '').strip()
+            max_raw = request.POST.get(f'max_{i}', '').strip()
+            percent_raw = request.POST.get(f'percent_{i}', '').strip()
+            flat_raw = request.POST.get(f'flat_{i}', '').strip()
+            if not min_raw or not percent_raw:
+                continue
+            try:
+                min_price = float(min_raw.replace(',', '.'))
+                max_price = float(max_raw.replace(',', '.')) if max_raw else None
+                percent = float(percent_raw.replace(',', '.'))
+                flat = float(flat_raw.replace(',', '.')) if flat_raw else 0.0
+            except ValueError:
+                continue
+            MarkupRule.objects.create(
+                min_price=min_price, max_price=max_price, percent=percent, flat_addition=flat,
+            )
         saved = True
-    return render(request, 'inventory/app_settings.html', {'setting': setting, 'saved': saved})
+
+    rules = MarkupRule.objects.order_by('min_price')
+    return render(request, 'inventory/app_settings.html', {
+        'setting': setting, 'saved': saved, 'rules': rules,
+    })
 
 
 # ─── Uygulama Güncelleme (uygulama içinden) ─────────────────────────────────────

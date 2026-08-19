@@ -14,8 +14,8 @@
 {% endif %}
 
 <div class="row">
-    <div class="col-lg-7">
-        <form method="post">
+    <div class="col-lg-9">
+        <form method="post" id="settingsForm">
             {% csrf_token %}
 
             <div class="card shadow mb-4">
@@ -47,7 +47,7 @@
                 </div>
                 <div class="card-body">
                     <div class="form-group">
-                        <label class="font-weight-bold">Kâr Marjı (%)</label>
+                        <label class="font-weight-bold">Taban Kâr Marjı (%)</label>
                         <div class="input-group" style="max-width:200px">
                             <input type="number" step="0.1" min="0" name="default_markup_percent"
                                    value="{{ setting.default_markup_percent|unlocalize }}" class="form-control">
@@ -56,10 +56,55 @@
                     </div>
                     <p class="text-muted small mb-0">
                         <i class="fas fa-info-circle mr-1"></i>
-                        Ürün eklerken (Dosyadan Aktar ve Hızlı Ürün Girişi) alış fiyatı girildiğinde,
-                        satış fiyatı bu kâr marjıyla otomatik önerilir. Örnek: 10 ₺ alış + %35 marj = 13,5 ₺,
-                        en yakın 5'in katına yukarı yuvarlanır → <strong>15 ₺</strong>. Sadece bir öneridir,
-                        her zaman elle değiştirebilirsin.
+                        Alış fiyatı aşağıdaki hiçbir kural aralığına girmezse bu taban marj kullanılır.
+                        Örnek: 10 ₺ alış + %35 marj = 13,5 ₺, en yakın 5'in katına yukarı yuvarlanır →
+                        <strong>15 ₺</strong>. Sadece bir öneridir, her zaman elle değiştirebilirsin.
+                    </p>
+                </div>
+            </div>
+
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold text-primary">Kademeli Kâr Kuralları</h6>
+                    <button type="button" class="btn btn-success btn-sm" id="addRuleBtn">
+                        <i class="fas fa-plus mr-1"></i> Kural Ekle
+                    </button>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted small">
+                        <i class="fas fa-info-circle mr-1"></i>
+                        Alış fiyatı belirli bir aralığa girdiğinde farklı bir kâr yüzdesi ve/veya sabit
+                        tutar eklemek için kural tanımla. Örnek: 50 ₺ altı sadece %35; 50–150 ₺ arası
+                        %35 + 10 ₺; 150 ₺ üstü %35 + 20 ₺. Üst sınırı boş bırakırsan "sınırsız" olur.
+                    </p>
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-sm mb-0" id="rulesTable">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th>Alış Fiyatı (₺) — Alt Sınır</th>
+                                    <th>Üst Sınır (boş = sınırsız)</th>
+                                    <th>Kâr (%)</th>
+                                    <th>Sabit Ekleme (₺)</th>
+                                    <th style="width:40px"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="rulesBody">
+                                {% for rule in rules %}
+                                <tr>
+                                    <td><input type="number" step="0.01" min="0" name="min_{{ forloop.counter0 }}" value="{{ rule.min_price|unlocalize }}" class="form-control form-control-sm" required></td>
+                                    <td><input type="number" step="0.01" min="0" name="max_{{ forloop.counter0 }}" value="{% if rule.max_price != None %}{{ rule.max_price|unlocalize }}{% endif %}" class="form-control form-control-sm" placeholder="sınırsız"></td>
+                                    <td><input type="number" step="0.1" min="0" name="percent_{{ forloop.counter0 }}" value="{{ rule.percent|unlocalize }}" class="form-control form-control-sm" required></td>
+                                    <td><input type="number" step="0.01" min="0" name="flat_{{ forloop.counter0 }}" value="{{ rule.flat_addition|unlocalize }}" class="form-control form-control-sm"></td>
+                                    <td class="text-center align-middle">
+                                        <button type="button" class="btn btn-danger btn-sm" onclick="this.closest('tr').remove()"><i class="fas fa-times"></i></button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <p id="noRulesMsg" class="text-muted small mt-2 mb-0" style="{% if rules %}display:none{% endif %}">
+                        Henüz kural yok — tüm ürünlerde taban kâr marjı kullanılıyor.
                     </p>
                 </div>
             </div>
@@ -70,4 +115,25 @@
         </form>
     </div>
 </div>
+
+<script>
+(function () {
+    var idx = {{ rules|length }};
+    var body = document.getElementById('rulesBody');
+    var noMsg = document.getElementById('noRulesMsg');
+    document.getElementById('addRuleBtn').addEventListener('click', function () {
+        var tr = document.createElement('tr');
+        tr.innerHTML =
+            '<td><input type="number" step="0.01" min="0" name="min_' + idx + '" class="form-control form-control-sm" required></td>' +
+            '<td><input type="number" step="0.01" min="0" name="max_' + idx + '" class="form-control form-control-sm" placeholder="sınırsız"></td>' +
+            '<td><input type="number" step="0.1" min="0" name="percent_' + idx + '" value="{{ setting.default_markup_percent|unlocalize }}" class="form-control form-control-sm" required></td>' +
+            '<td><input type="number" step="0.01" min="0" name="flat_' + idx + '" value="0" class="form-control form-control-sm"></td>' +
+            '<td class="text-center align-middle"><button type="button" class="btn btn-danger btn-sm" onclick="this.closest(\'tr\').remove()"><i class="fas fa-times"></i></button></td>';
+        body.appendChild(tr);
+        idx++;
+        if (noMsg) noMsg.style.display = 'none';
+        tr.querySelector('input').focus();
+    });
+})();
+</script>
 {% endblock %}
