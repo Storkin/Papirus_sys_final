@@ -121,9 +121,18 @@
                     <button type="button" class="btn btn-light btn-sm mr-1" title="{% trans 'Forward' %}" onclick="history.forward()">
                         <i class="fas fa-arrow-right"></i>
                     </button>
-                    <button type="button" class="btn btn-light btn-sm mr-2" title="{% trans 'Refresh' %}" onclick="location.reload()">
+                    <button type="button" class="btn btn-light btn-sm {% if user.is_superuser %}mr-1{% else %}mr-2{% endif %}" title="{% trans 'Refresh' %}" onclick="location.reload()">
                         <i class="fas fa-sync-alt"></i>
                     </button>
+                    {% if user.is_superuser %}
+                    <form method="post" action="{% url 'restart_app' %}" class="mr-2" id="restartForm" style="display:inline">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-outline-danger btn-sm" title="Uygulamayı Yeniden Başlat"
+                                onclick="return confirm('Uygulama kapanıp yeniden açılacak. Devam edilsin mi?')">
+                            <i class="fas fa-power-off"></i>
+                        </button>
+                    </form>
+                    {% endif %}
 
                     <!-- Logo -->
                     <a class="d-none d-sm-flex align-items-center text-decoration-none" href="/">
