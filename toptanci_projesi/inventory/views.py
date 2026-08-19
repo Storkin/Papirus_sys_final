@@ -724,6 +724,7 @@ def product_import(request):
                             tax_rate=float(request.POST.get(f'tax_{i}', '20') or 20),
                             supplier=request.POST.get(f'supplier_{i}', '').strip(),
                             shelf_location='', min_stock=0,
+                            track_stock=request.POST.get(f'track_{i}') == 'on',
                         )
                         StockMovement.objects.create(
                             product=product, change_amount=qty, old_stock=0,
@@ -856,6 +857,7 @@ def product_intake(request):
                         name=name, barcode=barcode, price=sell, stock_quantity=qty,
                         unit='adet', category='', manufacturer='', tax_rate=20.0,
                         supplier='', shelf_location='', min_stock=0,
+                        track_stock=request.POST.get(f'track_{i}') == 'on',
                     )
                     StockMovement.objects.create(
                         product=product, change_amount=qty, old_stock=0,

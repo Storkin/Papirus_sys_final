@@ -65,6 +65,7 @@
                             <th style="width:12%" class="text-center">{% trans "Quantity" %}</th>
                             <th style="width:15%">{% trans "Purchase Price" %} (₺)</th>
                             <th style="width:15%">{% trans "Sale Price" %} (₺) <span class="text-muted font-weight-normal" title="Alış fiyatı girilince %{{ markup_percent|floatformat:0 }} kârla otomatik önerilir">(önerilen: +%{{ markup_percent|floatformat:0 }})</span></th>
+                            <th style="width:10%" class="text-center">Stok Takip</th>
                             <th style="width:4%"></th>
                         </tr>
                     </thead>
@@ -113,6 +114,10 @@ function addRow(data = {}) {
         <td><input type="number" name="qty_${idx}" value="${data.qty || 1}" min="1" class="form-control form-control-sm text-center"></td>
         <td><input type="number" name="buy_${idx}" value="${data.buy || ''}" step="0.01" min="0" class="form-control form-control-sm text-right buy-input" data-idx="${idx}" placeholder="—"></td>
         <td><input type="number" name="sell_${idx}" value="${data.sell || ''}" step="0.01" min="0" class="form-control form-control-sm text-right sell-input" data-idx="${idx}" placeholder="—"></td>
+        <td class="text-center align-middle">
+            <input type="checkbox" name="track_${idx}" ${data.track === false ? '' : 'checked'}
+                   title="İşaretliyse bu yeni ürünün stok miktarı takip edilir; işareti kaldırırsan her zaman 'Mevcut' görünür (sadece bu isim/barkodla eşleşen ürün zaten sistemde yoksa geçerli)">
+        </td>
         <td class="text-center align-middle">
             <button type="button" class="btn btn-danger btn-sm" onclick="removeRow(${idx})" tabindex="-1"><i class="fas fa-times"></i></button>
         </td>`;

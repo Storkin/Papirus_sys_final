@@ -114,6 +114,7 @@
                             <th class="text-right">{% trans "Purchase Price" %}</th>
                             <th class="text-center" style="width:110px">{% trans "Quantity" %}</th>
                             <th class="text-center" style="width:140px">{% trans "Sale Price" %} (₺)</th>
+                            <th class="text-center" style="width:90px">Stok Takip</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -149,6 +150,14 @@
                                 <input type="number" name="price_{{ forloop.counter0 }}" value="{{ row.suggested_price|unlocalize }}"
                                        step="0.01" min="0" class="form-control form-control-sm text-right"
                                        title="Tavsiye edilen fiyat — dilediğin gibi değiştirebilirsin">
+                            </td>
+                            <td class="align-middle text-center">
+                                {% if row.exists %}
+                                <i class="fas fa-minus text-muted" title="Mevcut ürünün stok takibi ayarı ürün listesinden değiştirilir"></i>
+                                {% else %}
+                                <input type="checkbox" name="track_{{ forloop.counter0 }}" checked
+                                       title="İşaretliyse bu yeni ürünün stok miktarı takip edilir; işareti kaldırırsan her zaman 'Mevcut' görünür">
+                                {% endif %}
                             </td>
                         </tr>
                         {% endfor %}
