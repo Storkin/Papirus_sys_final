@@ -29,25 +29,39 @@
 
 <!-- Özet kartları -->
 <div class="row mb-4">
-    <div class="col-md-4 mb-3">
+    <div class="col-md-3 mb-3">
         <div class="card border-left-success shadow h-100 py-2"><div class="card-body">
             <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Toplam Ciro</div>
             <div class="h4 mb-0 font-weight-bold text-gray-800">{{ total_revenue|format_money }} ₺</div>
         </div></div>
     </div>
-    <div class="col-md-4 mb-3">
+    <div class="col-md-3 mb-3">
+        <div class="card border-left-warning shadow h-100 py-2"><div class="card-body">
+            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Beklenen Nakit (Kasa)</div>
+            <div class="h4 mb-0 font-weight-bold text-gray-800">{{ cash_total|format_money }} ₺</div>
+            <div class="small text-muted">Borç hariç</div>
+        </div></div>
+    </div>
+    <div class="col-md-3 mb-3">
         <div class="card border-left-primary shadow h-100 py-2"><div class="card-body">
             <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Satış Adedi</div>
             <div class="h4 mb-0 font-weight-bold text-gray-800">{{ sale_count }}</div>
         </div></div>
     </div>
-    <div class="col-md-4 mb-3">
+    <div class="col-md-3 mb-3">
         <div class="card border-left-info shadow h-100 py-2"><div class="card-body">
             <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Satılan Ürün Adedi</div>
             <div class="h4 mb-0 font-weight-bold text-gray-800">{{ total_qty }}</div>
         </div></div>
     </div>
 </div>
+
+{% if debt_total %}
+<div class="alert alert-secondary py-2 mb-4">
+    <i class="fas fa-info-circle mr-1"></i>
+    Bu tutarın <strong>{{ debt_total|format_money }} ₺</strong>'si müşteri borcuna eklendi, henüz kasaya girmedi.
+</div>
+{% endif %}
 
 <!-- Satılan ürünler -->
 <div class="card shadow mb-4">
@@ -83,4 +97,45 @@
         </div>
     </div>
 </div>
+
+{% if cancelled_sales %}
+<div class="card shadow mb-4 border-left-danger">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-danger">
+            <i class="fas fa-undo mr-1"></i> İptal Edilen Satışlar
+            <span class="badge badge-danger ml-2">{{ cancelled_sales|length }}</span>
+        </h6>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="thead-light">
+                    <tr>
+                        <th>#</th>
+                        <th>Saat</th>
+                        <th>Ürünler</th>
+                        <th class="text-right">Tutar</th>
+                        <th>Sebep</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for s in cancelled_sales %}
+                    <tr>
+                        <td class="text-muted">#{{ s.pk }}</td>
+                        <td>{{ s.cancelled_at|date:"H:i" }}</td>
+                        <td>
+                            {% for item in s.items.all %}
+                            <span class="badge badge-light border">{{ item.product.name }} ×{{ item.quantity }}</span>
+                            {% endfor %}
+                        </td>
+                        <td class="text-right"><s class="text-muted">{{ s.total_amount|format_money }} ₺</s></td>
+                        <td class="text-muted small">{{ s.cancel_reason|default:"—" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
 {% endblock %}

@@ -33,8 +33,11 @@
                 </thead>
                 <tbody>
                     {% for sale in sales %}
-                    <tr>
-                        <td class="align-middle text-muted">#{{ sale.pk }}</td>
+                    <tr {% if sale.is_cancelled %}class="table-secondary"{% endif %}>
+                        <td class="align-middle text-muted">
+                            #{{ sale.pk }}
+                            {% if sale.is_cancelled %}<span class="badge badge-danger ml-1">İptal</span>{% endif %}
+                        </td>
                         <td class="align-middle">{{ sale.date|date:"d.m.Y H:i" }}</td>
                         <td class="align-middle">
                             {% if sale.customer %}
@@ -51,7 +54,9 @@
                             <span class="badge badge-light border">{{ item.product.name }} ×{{ item.quantity }}</span>
                             {% endfor %}
                         </td>
-                        <td class="align-middle font-weight-bold text-success">{{ sale.total_amount|format_money }} ₺</td>
+                        <td class="align-middle font-weight-bold {% if sale.is_cancelled %}text-muted{% else %}text-success{% endif %}">
+                            {% if sale.is_cancelled %}<s>{{ sale.total_amount|format_money }} ₺</s>{% else %}{{ sale.total_amount|format_money }} ₺{% endif %}
+                        </td>
                         <td class="align-middle">
                             {% if sale.add_to_debt %}
                             <span class="badge badge-warning">{% trans "Yes" %}</span>

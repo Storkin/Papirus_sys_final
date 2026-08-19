@@ -85,6 +85,9 @@ class Sale(models.Model):
     total_amount = models.FloatField(default=0.0, verbose_name=_("Total Amount"))
     add_to_debt = models.BooleanField(default=False, verbose_name=_("Add to Customer Debt"))
     note = models.CharField(max_length=500, blank=True, default="", verbose_name=_("Note"))
+    is_cancelled = models.BooleanField(default=False, verbose_name=_("Cancelled"))
+    cancelled_at = models.DateTimeField(null=True, blank=True, verbose_name=_("Cancelled At"))
+    cancel_reason = models.CharField(max_length=255, blank=True, default="", verbose_name=_("Cancel Reason"))
 
     def __str__(self):
         customer_name = self.customer.name if self.customer else "—"

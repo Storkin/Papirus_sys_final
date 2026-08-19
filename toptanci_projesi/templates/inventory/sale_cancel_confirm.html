@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+{% load custom_filters %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-6">
+        <div class="card shadow mt-5">
+            <div class="card-header py-3 bg-danger">
+                <h6 class="m-0 font-weight-bold text-white"><i class="fas fa-exclamation-triangle mr-2"></i>Satışı İptal Et</h6>
+            </div>
+            <div class="card-body">
+                <p>Satış #{{ sale.pk }} ({{ sale.total_amount|format_money }} ₺) iptal edilecek. Stok geri eklenecek{% if sale.add_to_debt and sale.customer %}, {{ sale.customer.name }} adlı müşterinin borcundan tutar düşülecek{% endif %}.</p>
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="form-group">
+                        <label class="font-weight-bold">İptal Sebebi (isteğe bağlı)</label>
+                        <input type="text" name="reason" class="form-control">
+                    </div>
+                    <button type="submit" class="btn btn-danger"><i class="fas fa-undo mr-1"></i> Evet, İptal Et</button>
+                    <a href="{% url 'sale_detail' sale.pk %}" class="btn btn-secondary">Vazgeç</a>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

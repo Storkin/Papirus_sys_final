@@ -4,16 +4,37 @@
 
 {% block content %}
 <div class="d-sm-flex align-items-center justify-content-between mb-4">
-    <h1 class="h3 mb-0 text-gray-800">{% trans "Sale" %} #{{ sale.pk }}</h1>
-    <a href="{% url 'sale_list' %}" class="btn btn-secondary btn-sm">
-        <i class="fas fa-arrow-left mr-1"></i> {% trans "Back to Sales" %}
-    </a>
+    <h1 class="h3 mb-0 text-gray-800">
+        Satış #{{ sale.pk }}
+        {% if sale.is_cancelled %}
+        <span class="badge badge-danger align-middle" style="font-size:0.9rem">İptal Edildi</span>
+        {% endif %}
+    </h1>
+    <div>
+        {% if not sale.is_cancelled %}
+        <button type="button" class="btn btn-outline-danger btn-sm mr-2" data-toggle="modal" data-target="#cancelModal">
+            <i class="fas fa-undo mr-1"></i> Satışı İptal Et
+        </button>
+        {% endif %}
+        <a href="{% url 'sale_list' %}" class="btn btn-secondary btn-sm">
+            <i class="fas fa-arrow-left mr-1"></i> {% trans "Back to Sales" %}
+        </a>
+    </div>
 </div>
+
+{% if sale.is_cancelled %}
+<div class="alert alert-danger">
+    <i class="fas fa-exclamation-triangle mr-1"></i>
+    Bu satış <strong>{{ sale.cancelled_at|date:"d.m.Y H:i" }}</strong> tarihinde iptal edildi.
+    {% if sale.cancel_reason %}<br>Sebep: {{ sale.cancel_reason }}{% endif %}
+    <br><small class="text-muted">Stok ve müşteri borcu (varsa) geri iade edildi.</small>
+</div>
+{% endif %}
 
 <div class="row">
     <!-- Satış Bilgileri -->
     <div class="col-lg-4">
-        <div class="card shadow mb-4">
+        <div class="card shadow mb-4 {% if sale.is_cancelled %}border-left-danger{% endif %}">
             <div class="card-header py-3">
                 <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-info-circle mr-1"></i> {% trans "Sale Details" %}</h6>
             </div>
@@ -40,7 +61,9 @@
                     </tr>
                     <tr>
                         <td class="font-weight-bold text-muted">{% trans "Total Amount" %}</td>
-                        <td class="font-weight-bold text-success h5 mb-0">{{ sale.total_amount|format_money }} ₺</td>
+                        <td class="font-weight-bold {% if sale.is_cancelled %}text-danger{% else %}text-success{% endif %} h5 mb-0">
+                            {{ sale.total_amount|format_money }} ₺
+                        </td>
                     </tr>
                     <tr>
                         <td class="font-weight-bold text-muted">{% trans "Added to Debt" %}</td>
@@ -100,4 +123,41 @@
         </div>
     </div>
 </div>
+
+<!-- İptal Onay Modalı -->
+{% if not sale.is_cancelled %}
+<div class="modal fade" id="cancelModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <form method="post" action="{% url 'sale_cancel' sale.pk %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title text-danger"><i class="fas fa-exclamation-triangle mr-2"></i>Satışı İptal Et</h5>
+                    <button type="button" class="close" data-dismiss="modal"><span>×</span></button>
+                </div>
+                <div class="modal-body">
+                    <p>Bu satışı iptal etmek üzeresiniz. Bu işlem:</p>
+                    <ul>
+                        <li>Satılan ürünlerin stoğunu <strong>geri ekler</strong></li>
+                        {% if sale.add_to_debt and sale.customer %}
+                        <li><strong>{{ sale.customer.name }}</strong> adlı müşterinin borcundan <strong>{{ sale.total_amount|format_money }} ₺</strong> düşer</li>
+                        {% endif %}
+                        <li>Satış kaydı silinmez, "İptal Edildi" olarak işaretlenir</li>
+                    </ul>
+                    <div class="form-group mb-0">
+                        <label class="font-weight-bold">İptal Sebebi (isteğe bağlı)</label>
+                        <input type="text" name="reason" class="form-control" placeholder="Örn: Yanlış ürün girildi">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Vazgeç</button>
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-undo mr-1"></i> Evet, İptal Et
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
 {% endblock %}

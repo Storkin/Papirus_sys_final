@@ -368,7 +368,8 @@ def sale_list(request):
 
 @login_required
 def sales_report(request):
-    """Seçili tek gün için satış raporu: toplam ciro, satış adedi ve satılan ürünler."""
+    """Seçili tek gün için gün sonu kasa raporu: nakit/borçlu ciro ayrımı,
+    satış adedi, satılan ürünler ve iptal edilen satışlar."""
     from django.db.models import Sum, F
     from django.utils import timezone
     from datetime import datetime
@@ -379,8 +380,15 @@ def sales_report(request):
     except (ValueError, TypeError):
         gun = today
 
-    sales = Sale.objects.filter(date__date=gun)
-    total_revenue = sales.aggregate(s=Sum('total_amount'))['s'] or 0
+    all_sales = Sale.objects.filter(date__date=gun)
+    sales = all_sales.filter(is_cancelled=False)
+    cancelled_sales = all_sales.filter(is_cancelled=True).select_related('customer').prefetch_related('items__product')
+
+    cash_sales = sales.filter(add_to_debt=False)
+    debt_sales = sales.filter(add_to_debt=True)
+    cash_total = cash_sales.aggregate(s=Sum('total_amount'))['s'] or 0
+    debt_total = debt_sales.aggregate(s=Sum('total_amount'))['s'] or 0
+    total_revenue = cash_total + debt_total
     sale_count = sales.count()
 
     items = list(
@@ -394,9 +402,12 @@ def sales_report(request):
     return render(request, 'inventory/sales_report.html', {
         'gun': gun,
         'total_revenue': total_revenue,
+        'cash_total': cash_total,
+        'debt_total': debt_total,
         'sale_count': sale_count,
         'total_qty': total_qty,
         'items': items,
+        'cancelled_sales': cancelled_sales,
     })
 
 
@@ -505,6 +516,46 @@ def sale_create(request):
 def sale_detail(request, pk):
     sale = get_object_or_404(Sale.objects.select_related('customer').prefetch_related('items__product'), pk=pk)
     return render(request, 'inventory/sale_detail.html', {'sale': sale})
+
+
+@login_required
+def sale_cancel(request, pk):
+    """Satışı iptal eder: stok geri iade edilir (takip açık ürünlerde), müşteri
+    borcuna eklenmişse borç geri düşülür. Satış kaydı silinmez, 'İptal Edildi'
+    olarak işaretlenir ve stok hareketlerinde iz bırakır."""
+    sale = get_object_or_404(Sale.objects.select_related('customer').prefetch_related('items__product'), pk=pk)
+    if request.method == 'POST':
+        if sale.is_cancelled:
+            return redirect('sale_detail', pk=sale.pk)
+
+        reason = request.POST.get('reason', '').strip()
+        from django.utils import timezone
+        global_tracking = AppSetting.get().stock_tracking_enabled
+
+        for item in sale.items.all():
+            product = item.product
+            if global_tracking and product.track_stock:
+                old_stock = product.stock_quantity
+                product.stock_quantity += item.quantity
+                product.save(update_fields=['stock_quantity'])
+                StockMovement.objects.create(
+                    product=product, change_amount=item.quantity, old_stock=old_stock,
+                    new_stock=product.stock_quantity, note=f'Satış #{sale.pk} İptal Edildi',
+                )
+
+        if sale.add_to_debt and sale.customer:
+            sale.customer.debt = round(sale.customer.debt - sale.total_amount, 2)
+            if sale.customer.debt < 0:
+                sale.customer.debt = 0.0
+            sale.customer.save(update_fields=['debt'])
+
+        sale.is_cancelled = True
+        sale.cancelled_at = timezone.now()
+        sale.cancel_reason = reason
+        sale.save(update_fields=['is_cancelled', 'cancelled_at', 'cancel_reason'])
+        return redirect('sale_detail', pk=sale.pk)
+
+    return render(request, 'inventory/sale_cancel_confirm.html', {'sale': sale})
 
 
 # ─── Product Import Views ──────────────────────────────────────────────────────

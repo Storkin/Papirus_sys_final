@@ -21,6 +21,7 @@ urlpatterns = [
     path('sales/report/', views.sales_report, name='sales_report'),
     path('sales/new/', views.sale_create, name='sale_create'),
     path('sales/<int:pk>/', views.sale_detail, name='sale_detail'),
+    path('sales/<int:pk>/cancel/', views.sale_cancel, name='sale_cancel'),
     path('products/intake/', views.product_intake, name='product_intake'),
     path('products/import/', views.product_import, name='product_import'),
     path('products/import/template/', views.product_import_template, name='product_import_template'),
