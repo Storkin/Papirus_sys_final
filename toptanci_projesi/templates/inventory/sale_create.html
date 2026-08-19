@@ -26,7 +26,7 @@
 <div class="alert alert-danger"><i class="fas fa-exclamation-circle mr-2"></i>{{ error }}</div>
 {% endif %}
 
-<form method="post" id="saleForm">
+<form method="post" id="saleForm" novalidate>
     {% csrf_token %}
     <div class="row">
 
@@ -324,7 +324,7 @@ function buildRow(productId, initQty = 1, initPrice = null, flash = false) {
         </td>
         <td>
             <input type="number" name="price_${idx}" class="form-control form-control-sm price-input"
-                   data-idx="${idx}" step="0.01" min="0" value="${usedPrice > 0 ? usedPrice.toFixed(2) : ''}">
+                   data-idx="${idx}" step="0.5" min="0" value="${usedPrice > 0 ? usedPrice.toFixed(2) : ''}">
         </td>
         <td class="align-middle font-weight-bold row-subtotal" id="sub_${idx}" data-value="0">0,00 ₺</td>
         <td class="align-middle row-actions text-center">

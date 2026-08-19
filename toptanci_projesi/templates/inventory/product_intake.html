@@ -21,7 +21,7 @@
 </div>
 {% endif %}
 
-<form method="post" id="intakeForm">
+<form method="post" id="intakeForm" novalidate>
     {% csrf_token %}
     <div class="card shadow mb-4">
         <div class="card-header py-3 d-flex align-items-center justify-content-between">
@@ -131,8 +131,8 @@ function addRow(data = {}) {
         <td><input type="text" name="barcode_${idx}" value="${data.barcode || ''}" class="form-control form-control-sm bc-input" data-idx="${idx}" autocomplete="off"></td>
         <td><input type="text" name="name_${idx}" value="${data.name ? data.name.replace(/"/g,'&quot;') : ''}" class="form-control form-control-sm name-input" required></td>
         <td><input type="number" name="qty_${idx}" value="${data.qty || 1}" min="1" class="form-control form-control-sm text-center"></td>
-        <td><input type="number" name="buy_${idx}" value="${data.buy || ''}" step="0.01" min="0" class="form-control form-control-sm text-right buy-input" data-idx="${idx}" placeholder="—"></td>
-        <td><input type="number" name="sell_${idx}" value="${data.sell || ''}" step="0.01" min="0" class="form-control form-control-sm text-right sell-input" data-idx="${idx}" placeholder="—"></td>
+        <td><input type="number" name="buy_${idx}" value="${data.buy || ''}" step="0.5" min="0" class="form-control form-control-sm text-right buy-input" data-idx="${idx}" placeholder="—"></td>
+        <td><input type="number" name="sell_${idx}" value="${data.sell || ''}" step="0.5" min="0" class="form-control form-control-sm text-right sell-input" data-idx="${idx}" placeholder="—"></td>
         <td class="text-center align-middle">
             <input type="checkbox" name="track_${idx}" ${data.track === false ? '' : 'checked'}
                    title="İşaretliyse bu yeni ürünün stok miktarı takip edilir; işareti kaldırırsan her zaman 'Mevcut' görünür (sadece bu isim/barkodla eşleşen ürün zaten sistemde yoksa geçerli)">

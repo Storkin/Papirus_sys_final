@@ -78,7 +78,7 @@
 
 {% if preview %}
 <!-- ═══════ DÜZENLENEBİLİR ÖNİZLEME (Aşama A) ═══════ -->
-<form method="post" id="confirmForm">
+<form method="post" id="confirmForm" novalidate>
     {% csrf_token %}
     <input type="hidden" name="confirm" value="1">
     <div class="card shadow mb-4">
@@ -148,7 +148,7 @@
                             </td>
                             <td class="align-middle">
                                 <input type="number" name="price_{{ forloop.counter0 }}" value="{{ row.suggested_price|unlocalize }}"
-                                       step="0.01" min="0" class="form-control form-control-sm text-right"
+                                       step="0.5" min="0" class="form-control form-control-sm text-right"
                                        title="Tavsiye edilen fiyat — dilediğin gibi değiştirebilirsin">
                             </td>
                             <td class="align-middle text-center">
