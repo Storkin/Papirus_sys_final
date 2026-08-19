@@ -752,6 +752,7 @@ def product_import(request):
             'name', 'ürün adı', 'urun adi', 'stok adı', 'stok adi', 'stok_adi',
             'stok adı', 'ürün adi', 'stokadı',
         }
+        markup = AppSetting.get().default_markup_percent
         preview = []
         for row in rows:
             # Ad: 'Ürün Adı' veya 'Stok Adı' (farklı tedarikçi/program başlıkları)
@@ -781,6 +782,7 @@ def product_import(request):
                 'tax_rate': _imp_get(row, 'tax_rate', 'KDV Oranı', default='20'),
                 'qty': qty,
                 'purchase_price': purchase,
+                'suggested_price': suggested_price(purchase, markup),
                 'exists': bool(existing),
                 'current_stock': existing.stock_quantity if existing else 0,
             })
@@ -848,7 +850,10 @@ def product_intake(request):
 
         saved = {'added': added, 'updated': updated, 'skipped': skipped}
 
-    return render(request, 'inventory/product_intake.html', {'saved': saved})
+    return render(request, 'inventory/product_intake.html', {
+        'saved': saved,
+        'markup_percent': AppSetting.get().default_markup_percent,
+    })
 
 
 @login_required
@@ -998,13 +1003,33 @@ def reference_import_template(request):
 
 # ─── Ayarlar ────────────────────────────────────────────────────────────────────
 
+def suggested_price(purchase_price, markup_percent):
+    """Alış fiyatından tavsiye satış fiyatı: kâr marjı ekle, 5'in katına yukarı
+    yuvarla (ör. 10 TL alış + %35 -> 13.5 -> 15 TL; 100 TL alış -> 135 -> 135 TL)."""
+    import math
+    try:
+        purchase_price = float(purchase_price)
+    except (TypeError, ValueError):
+        return 0.0
+    if purchase_price <= 0:
+        return 0.0
+    raw = purchase_price * (1 + (markup_percent or 0) / 100)
+    return math.ceil(raw / 5) * 5
+
+
 @patron_required
 def app_settings(request):
-    """Genel uygulama ayarları — şimdilik: ana stok takibi şalteri."""
+    """Genel uygulama ayarları — stok takibi şalteri + tavsiye fiyat kâr marjı."""
     setting = AppSetting.get()
     saved = False
     if request.method == 'POST':
         setting.stock_tracking_enabled = request.POST.get('stock_tracking_enabled') == 'on'
+        try:
+            setting.default_markup_percent = float(
+                request.POST.get('default_markup_percent', '35').replace(',', '.')
+            )
+        except (TypeError, ValueError):
+            pass
         setting.save()
         saved = True
     return render(request, 'inventory/app_settings.html', {'setting': setting, 'saved': saved})

@@ -146,8 +146,9 @@
                                        class="form-control form-control-sm text-center">
                             </td>
                             <td class="align-middle">
-                                <input type="number" name="price_{{ forloop.counter0 }}" value="{{ row.purchase_price|unlocalize }}"
-                                       step="0.01" min="0" class="form-control form-control-sm text-right">
+                                <input type="number" name="price_{{ forloop.counter0 }}" value="{{ row.suggested_price|unlocalize }}"
+                                       step="0.01" min="0" class="form-control form-control-sm text-right"
+                                       title="Tavsiye edilen fiyat — dilediğin gibi değiştirebilirsin">
                             </td>
                         </tr>
                         {% endfor %}

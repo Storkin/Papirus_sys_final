@@ -144,8 +144,12 @@ class ReferenceBarcode(models.Model):
 
 class AppSetting(models.Model):
     """Tek satırlık genel ayar. stock_tracking_enabled = ana stok takibi şalteri.
-    Kapalıysa hiçbir üründe stok umursanmaz (hepsi 'Mevcut')."""
+    Kapalıysa hiçbir üründe stok umursanmaz (hepsi 'Mevcut').
+    default_markup_percent = alış fiyatından tavsiye satış fiyatı hesaplarken
+    kullanılan genel kâr marjı yüzdesi (ürün ekleme sayfalarında öneri olarak
+    kullanılır, kullanıcı isterse değiştirebilir)."""
     stock_tracking_enabled = models.BooleanField(default=True, verbose_name=_("Stock Tracking"))
+    default_markup_percent = models.FloatField(default=35.0, verbose_name=_("Default Markup (%)"))
 
     @classmethod
     def get(cls):

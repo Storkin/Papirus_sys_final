@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load i18n %}
+{% load l10n %}
 
 {% block content %}
 <div class="d-sm-flex align-items-center justify-content-between mb-4">
@@ -63,7 +64,7 @@
                             <th style="width:34%">{% trans "Product Name" %}</th>
                             <th style="width:12%" class="text-center">{% trans "Quantity" %}</th>
                             <th style="width:15%">{% trans "Purchase Price" %} (₺)</th>
-                            <th style="width:15%">{% trans "Sale Price" %} (₺)</th>
+                            <th style="width:15%">{% trans "Sale Price" %} (₺) <span class="text-muted font-weight-normal" title="Alış fiyatı girilince %{{ markup_percent|floatformat:0 }} kârla otomatik önerilir">(önerilen: +%{{ markup_percent|floatformat:0 }})</span></th>
                             <th style="width:4%"></th>
                         </tr>
                     </thead>
@@ -93,6 +94,7 @@
 <script>
 let rowIndex = 0;
 const tbody = document.getElementById('rowsBody');
+const MARKUP_PERCENT = {{ markup_percent|unlocalize }};
 
 function updateCount() {
     const n = tbody.querySelectorAll('tr').length;
@@ -109,8 +111,8 @@ function addRow(data = {}) {
         <td><input type="text" name="barcode_${idx}" value="${data.barcode || ''}" class="form-control form-control-sm bc-input" data-idx="${idx}" autocomplete="off"></td>
         <td><input type="text" name="name_${idx}" value="${data.name ? data.name.replace(/"/g,'&quot;') : ''}" class="form-control form-control-sm name-input" required></td>
         <td><input type="number" name="qty_${idx}" value="${data.qty || 1}" min="1" class="form-control form-control-sm text-center"></td>
-        <td><input type="number" name="buy_${idx}" value="${data.buy || ''}" step="0.01" min="0" class="form-control form-control-sm text-right" placeholder="—"></td>
-        <td><input type="number" name="sell_${idx}" value="${data.sell || ''}" step="0.01" min="0" class="form-control form-control-sm text-right" placeholder="—"></td>
+        <td><input type="number" name="buy_${idx}" value="${data.buy || ''}" step="0.01" min="0" class="form-control form-control-sm text-right buy-input" data-idx="${idx}" placeholder="—"></td>
+        <td><input type="number" name="sell_${idx}" value="${data.sell || ''}" step="0.01" min="0" class="form-control form-control-sm text-right sell-input" data-idx="${idx}" placeholder="—"></td>
         <td class="text-center align-middle">
             <button type="button" class="btn btn-danger btn-sm" onclick="removeRow(${idx})" tabindex="-1"><i class="fas fa-times"></i></button>
         </td>`;
@@ -119,6 +121,18 @@ function addRow(data = {}) {
     const bc = tr.querySelector('.bc-input');
     bc.addEventListener('keydown', function (e) {
         if (e.key === 'Enter') { e.preventDefault(); lookupInto(idx, this.value); }
+    });
+    // Alış fiyatı girilince, satış fiyatı boşsa tavsiye fiyatı otomatik doldur
+    const buyInput = tr.querySelector('.buy-input');
+    const sellInput = tr.querySelector('.sell-input');
+    let sellTouched = !!data.sell;
+    sellInput.addEventListener('input', () => { sellTouched = true; });
+    buyInput.addEventListener('input', function () {
+        if (sellTouched) return;
+        const buy = parseFloat(this.value);
+        if (!buy || buy <= 0) { sellInput.value = ''; return; }
+        const raw = buy * (1 + MARKUP_PERCENT / 100);
+        sellInput.value = (Math.ceil(raw / 5) * 5).toFixed(2);
     });
     updateCount();
     return idx;
