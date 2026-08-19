@@ -83,9 +83,18 @@ def backup_db():
     import shutil
     import glob
     import datetime
+    import sqlite3
     db = os.path.join(BASE_DIR, 'db.sqlite3')
     if not os.path.exists(db):
         return
+    # WAL modunda son işlemler önce ana dosyaya "checkpoint" edilmeli, yoksa
+    # ham dosya kopyası son yazılan verileri kaçırabilir.
+    try:
+        conn = sqlite3.connect(db, timeout=10)
+        conn.execute('PRAGMA wal_checkpoint(TRUNCATE);')
+        conn.close()
+    except Exception:
+        pass
     ts = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
     for bdir in backup_dirs():
         try:

@@ -47,6 +47,9 @@ if ($ans -eq 'E' -or $ans -eq 'e') {
         Write-Host "Mevcut veritabani '$db.geri_yukleme_oncesi' olarak saklandi."
     }
     Copy-Item $newest.FullName $db -Force
+    # WAL modundan kalan eski -wal/-shm dosyalari varsa temizle (tutarsizlik olmasin)
+    Remove-Item "$db-wal" -Force -ErrorAction SilentlyContinue
+    Remove-Item "$db-shm" -Force -ErrorAction SilentlyContinue
     Write-Host "`nGERI YUKLENDI! Artik uygulamayi acabilirsiniz." -ForegroundColor Green
 } else {
     Write-Host "Iptal edildi."

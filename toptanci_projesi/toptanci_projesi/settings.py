@@ -114,6 +114,9 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
+        # 'database is locked' hatasını önlemek için: yazma kilidi meşgulse hemen
+        # hata vermek yerine (SQLite varsayılanı ~5sn) daha uzun bekle.
+        'OPTIONS': {'timeout': 30},
     }
 }
 

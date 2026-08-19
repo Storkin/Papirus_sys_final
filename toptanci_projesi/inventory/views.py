@@ -651,67 +651,72 @@ def product_import(request):
 
     # ── Aşama B: düzenlenmiş önizleme onaylandı → ürünleri oluştur/güncelle ──
     if request.method == 'POST' and request.POST.get('confirm') == '1':
+        from django.db import transaction
         created, updated, skipped = [], [], []
-        i = 0
-        while f'name_{i}' in request.POST:
-            if request.POST.get(f'include_{i}') != 'on':
-                i += 1
-                continue
-            name = request.POST.get(f'name_{i}', '').strip()
-            barcode = request.POST.get(f'barcode_{i}', '').strip()
-            unit = request.POST.get(f'unit_{i}', 'adet').strip() or 'adet'
-            try:
-                qty = int(float(request.POST.get(f'qty_{i}', '0').replace(',', '.')))
-            except (ValueError, TypeError):
-                qty = 0
-            try:
-                sale_price = float(request.POST.get(f'price_{i}', '0').replace(',', '.'))
-            except (ValueError, TypeError):
-                sale_price = 0.0
-
-            if not name:
-                i += 1
-                continue
-            if qty <= 0:
-                skipped.append({'reason': 'Miktar 0', 'row': name})
-                i += 1
-                continue
-
-            product = None
-            if barcode:
-                product = Product.objects.filter(barcode=barcode).first()
-            if not product:
-                product = Product.objects.filter(name__iexact=name).first()
-
-            if product:
-                old_stock = product.stock_quantity
-                product.stock_quantity += qty
-                if sale_price > 0:
-                    product.price = sale_price  # kullanıcının belirlediği satış fiyatı
-                product.save()
-                StockMovement.objects.create(
-                    product=product, change_amount=qty, old_stock=old_stock,
-                    new_stock=product.stock_quantity, note='Dosya İçe Aktarma',
-                )
-                updated.append({'name': product.name, 'added': qty, 'new_stock': product.stock_quantity})
-            else:
+        # Tüm satırlar TEK bir işlemde (transaction) yazılır: yüzlerce ayrı
+        # commit yerine bir tane -> hem çok daha hızlı hem "database is locked"
+        # riskini ortadan kaldırır; bir hata olursa hiçbiri yarım kalmaz.
+        with transaction.atomic():
+            i = 0
+            while f'name_{i}' in request.POST:
+                if request.POST.get(f'include_{i}') != 'on':
+                    i += 1
+                    continue
+                name = request.POST.get(f'name_{i}', '').strip()
+                barcode = request.POST.get(f'barcode_{i}', '').strip()
+                unit = request.POST.get(f'unit_{i}', 'adet').strip() or 'adet'
                 try:
-                    product = Product.objects.create(
-                        name=name, category=request.POST.get(f'category_{i}', '').strip(),
-                        price=sale_price, manufacturer=request.POST.get(f'manufacturer_{i}', '').strip(),
-                        stock_quantity=qty, unit=unit, barcode=barcode,
-                        tax_rate=float(request.POST.get(f'tax_{i}', '20') or 20),
-                        supplier=request.POST.get(f'supplier_{i}', '').strip(),
-                        shelf_location='', min_stock=0,
-                    )
+                    qty = int(float(request.POST.get(f'qty_{i}', '0').replace(',', '.')))
+                except (ValueError, TypeError):
+                    qty = 0
+                try:
+                    sale_price = float(request.POST.get(f'price_{i}', '0').replace(',', '.'))
+                except (ValueError, TypeError):
+                    sale_price = 0.0
+
+                if not name:
+                    i += 1
+                    continue
+                if qty <= 0:
+                    skipped.append({'reason': 'Miktar 0', 'row': name})
+                    i += 1
+                    continue
+
+                product = None
+                if barcode:
+                    product = Product.objects.filter(barcode=barcode).first()
+                if not product:
+                    product = Product.objects.filter(name__iexact=name).first()
+
+                if product:
+                    old_stock = product.stock_quantity
+                    product.stock_quantity += qty
+                    if sale_price > 0:
+                        product.price = sale_price  # kullanıcının belirlediği satış fiyatı
+                    product.save()
                     StockMovement.objects.create(
-                        product=product, change_amount=qty, old_stock=0,
-                        new_stock=qty, note='Dosya İçe Aktarma (Yeni Ürün)',
+                        product=product, change_amount=qty, old_stock=old_stock,
+                        new_stock=product.stock_quantity, note='Dosya İçe Aktarma',
                     )
-                    created.append({'name': product.name, 'stock': qty})
-                except Exception as e:
-                    errors.append(f'"{name}" oluşturulamadı: {str(e)}')
-            i += 1
+                    updated.append({'name': product.name, 'added': qty, 'new_stock': product.stock_quantity})
+                else:
+                    try:
+                        product = Product.objects.create(
+                            name=name, category=request.POST.get(f'category_{i}', '').strip(),
+                            price=sale_price, manufacturer=request.POST.get(f'manufacturer_{i}', '').strip(),
+                            stock_quantity=qty, unit=unit, barcode=barcode,
+                            tax_rate=float(request.POST.get(f'tax_{i}', '20') or 20),
+                            supplier=request.POST.get(f'supplier_{i}', '').strip(),
+                            shelf_location='', min_stock=0,
+                        )
+                        StockMovement.objects.create(
+                            product=product, change_amount=qty, old_stock=0,
+                            new_stock=qty, note='Dosya İçe Aktarma (Yeni Ürün)',
+                        )
+                        created.append({'name': product.name, 'stock': qty})
+                    except Exception as e:
+                        errors.append(f'"{name}" oluşturulamadı: {str(e)}')
+                i += 1
 
         results = {'created': created, 'updated': updated, 'skipped': skipped, 'errors': errors}
         return render(request, 'inventory/product_import.html', {'results': results})
@@ -790,54 +795,56 @@ def product_intake(request):
     eşleşen ürünün stoğu artar (+satış fiyatı güncellenir), yenisi oluşturulur."""
     saved = None
     if request.method == 'POST':
+        from django.db import transaction
         added, updated, skipped = [], [], []
-        i = 0
-        while f'name_{i}' in request.POST:
-            name = request.POST.get(f'name_{i}', '').strip()
-            if not name:
+        with transaction.atomic():
+            i = 0
+            while f'name_{i}' in request.POST:
+                name = request.POST.get(f'name_{i}', '').strip()
+                if not name:
+                    i += 1
+                    continue
+                barcode = request.POST.get(f'barcode_{i}', '').strip()
+                try:
+                    qty = int(float(request.POST.get(f'qty_{i}', '1').replace(',', '.')))
+                except (ValueError, TypeError):
+                    qty = 1
+                if qty < 1:
+                    qty = 1
+                try:
+                    sell = float(request.POST.get(f'sell_{i}', '0').replace(',', '.'))
+                except (ValueError, TypeError):
+                    sell = 0.0
+
+                product = None
+                if barcode:
+                    product = Product.objects.filter(barcode=barcode).first()
+                if not product:
+                    product = Product.objects.filter(name__iexact=name).first()
+
+                if product:
+                    old = product.stock_quantity
+                    product.stock_quantity += qty
+                    if sell > 0:
+                        product.price = sell
+                    product.save()
+                    StockMovement.objects.create(
+                        product=product, change_amount=qty, old_stock=old,
+                        new_stock=product.stock_quantity, note='Alım',
+                    )
+                    updated.append({'name': product.name, 'added': qty, 'new_stock': product.stock_quantity})
+                else:
+                    product = Product.objects.create(
+                        name=name, barcode=barcode, price=sell, stock_quantity=qty,
+                        unit='adet', category='', manufacturer='', tax_rate=20.0,
+                        supplier='', shelf_location='', min_stock=0,
+                    )
+                    StockMovement.objects.create(
+                        product=product, change_amount=qty, old_stock=0,
+                        new_stock=qty, note='Alım (Yeni Ürün)',
+                    )
+                    added.append({'name': product.name, 'stock': qty})
                 i += 1
-                continue
-            barcode = request.POST.get(f'barcode_{i}', '').strip()
-            try:
-                qty = int(float(request.POST.get(f'qty_{i}', '1').replace(',', '.')))
-            except (ValueError, TypeError):
-                qty = 1
-            if qty < 1:
-                qty = 1
-            try:
-                sell = float(request.POST.get(f'sell_{i}', '0').replace(',', '.'))
-            except (ValueError, TypeError):
-                sell = 0.0
-
-            product = None
-            if barcode:
-                product = Product.objects.filter(barcode=barcode).first()
-            if not product:
-                product = Product.objects.filter(name__iexact=name).first()
-
-            if product:
-                old = product.stock_quantity
-                product.stock_quantity += qty
-                if sell > 0:
-                    product.price = sell
-                product.save()
-                StockMovement.objects.create(
-                    product=product, change_amount=qty, old_stock=old,
-                    new_stock=product.stock_quantity, note='Alım',
-                )
-                updated.append({'name': product.name, 'added': qty, 'new_stock': product.stock_quantity})
-            else:
-                product = Product.objects.create(
-                    name=name, barcode=barcode, price=sell, stock_quantity=qty,
-                    unit='adet', category='', manufacturer='', tax_rate=20.0,
-                    supplier='', shelf_location='', min_stock=0,
-                )
-                StockMovement.objects.create(
-                    product=product, change_amount=qty, old_stock=0,
-                    new_stock=qty, note='Alım (Yeni Ürün)',
-                )
-                added.append({'name': product.name, 'stock': qty})
-            i += 1
 
         saved = {'added': added, 'updated': updated, 'skipped': skipped}
 
