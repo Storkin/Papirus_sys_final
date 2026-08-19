@@ -709,6 +709,7 @@ def product_import(request):
                     product.stock_quantity += qty
                     if sale_price > 0:
                         product.price = sale_price  # kullanıcının belirlediği satış fiyatı
+                    product.track_stock = request.POST.get(f'track_{i}') == 'on'
                     product.save()
                     StockMovement.objects.create(
                         product=product, change_amount=qty, old_stock=old_stock,
@@ -802,6 +803,7 @@ def product_import(request):
                 'suggested_price': suggested_price(purchase, markup),
                 'exists': bool(existing),
                 'current_stock': existing.stock_quantity if existing else 0,
+                'current_track_stock': existing.track_stock if existing else True,
             })
 
     return render(request, 'inventory/product_import.html', {'results': results, 'preview': preview, 'preview_errors': errors})
@@ -846,6 +848,7 @@ def product_intake(request):
                     product.stock_quantity += qty
                     if sell > 0:
                         product.price = sell
+                    product.track_stock = request.POST.get(f'track_{i}') == 'on'
                     product.save()
                     StockMovement.objects.create(
                         product=product, change_amount=qty, old_stock=old,
