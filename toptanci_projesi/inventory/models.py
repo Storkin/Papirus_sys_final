@@ -178,6 +178,33 @@ class MarkupRule(models.Model):
         return f"{self.min_price:.0f}–{top} ₺ → %{self.percent:.0f} +{self.flat_addition:.0f}₺"
 
 
+class PairingCode(models.Model):
+    """Telefon eşleştirme: bilgisayar ekranında bir QR kod + 6 haneli kod
+    gösterilir. Telefon QR'ı okuyunca açılan sayfada bu 6 haneli kodu girmesi
+    istenir — böylece telefonun gerçekten dükkanda, bilgisayarın karşısında
+    olduğu doğrulanmış olur (karşılıklı doğrulama). Kod eşleşmeden asıl giriş
+    sayfasına yönlendirilmez. Kısa ömürlü ve tek kullanımlıktır."""
+    token = models.CharField(max_length=32, unique=True, db_index=True)
+    code = models.CharField(max_length=6)
+    created_at = models.DateTimeField(auto_now_add=True)
+    used = models.BooleanField(default=False)
+    attempts = models.IntegerField(default=0)
+
+    EXPIRY_MINUTES = 5
+    MAX_ATTEMPTS = 5
+
+    def is_valid(self):
+        from django.utils import timezone
+        import datetime
+        if self.used or self.attempts >= self.MAX_ATTEMPTS:
+            return False
+        age = timezone.now() - self.created_at
+        return age < datetime.timedelta(minutes=self.EXPIRY_MINUTES)
+
+    def __str__(self):
+        return f"{self.code} ({'kullanıldı' if self.used else 'aktif'})"
+
+
 @receiver(post_save, sender=Product)
 def learn_barcode(sender, instance, **kwargs):
     """Oto-öğrenme: barkodu olan her ürün referans hafızaya yazılır/güncellenir."""

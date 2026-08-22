@@ -148,9 +148,21 @@
                                data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" title="Telefondan Bağlan">
                                 <i class="fas fa-mobile-alt fa-fw"></i>
                             </a>
-                            <div class="dropdown-menu dropdown-menu-right shadow p-3" aria-labelledby="lanDropdown" style="min-width:280px">
+                            <div class="dropdown-menu dropdown-menu-right shadow p-3" id="lanDropdownMenu" aria-labelledby="lanDropdown" style="min-width:300px">
+                                {% csrf_token %}
                                 <h6 class="font-weight-bold text-primary mb-2"><i class="fas fa-wifi mr-1"></i> Telefondan Bağlan</h6>
-                                <p class="small text-muted mb-2">Telefon/tablet aynı WiFi'da olmalı. Tarayıcıda bu adresi aç:</p>
+                                <p class="small text-muted mb-2">Telefonun kamerasıyla aşağıdaki karekodu okut; güvenlik için ekranda çıkan 6 haneli kodu telefonuna gir.</p>
+
+                                <div id="pairQrArea" class="text-center mb-2" style="display:none">
+                                    <img id="pairQrImg" src="" alt="Karekod" style="width:160px;height:160px;border:1px solid #eee;border-radius:6px;">
+                                    <div class="h4 font-weight-bold text-primary mt-2 mb-0" id="pairCodeText" style="letter-spacing:0.3em"></div>
+                                    <div class="small text-muted" id="pairCodeTimer"></div>
+                                </div>
+                                <button class="btn btn-primary btn-sm btn-block mb-2" type="button" id="pairShowBtn">
+                                    <i class="fas fa-qrcode mr-1"></i> Karekod Göster
+                                </button>
+
+                                <p class="small text-muted mb-1">Ya da elle bu adresi aç:</p>
                                 <div class="input-group input-group-sm mb-2">
                                     <input type="text" class="form-control" value="{{ LAN_URL }}" id="lanUrlBox" readonly onclick="this.select()">
                                     <div class="input-group-append">
@@ -459,6 +471,51 @@
             openCameraScanner(onDetect);
         });
     }
+
+    // Telefondan Bağlan: karekod + 6 haneli eşleştirme kodu üretip gösterir.
+    (function () {
+        var showBtn = document.getElementById('pairShowBtn');
+        if (!showBtn) return;
+        var timerInterval = null;
+
+        function stopTimer() {
+            if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+        }
+
+        showBtn.addEventListener('click', function () {
+            var csrfInput = document.querySelector('#lanDropdownMenu input[name=csrfmiddlewaretoken]');
+            showBtn.disabled = true;
+            fetch("{% url 'pairing_start' %}", {
+                method: 'POST',
+                headers: { 'X-CSRFToken': csrfInput ? csrfInput.value : '' }
+            })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    showBtn.disabled = false;
+                    if (!data.ok) return;
+                    document.getElementById('pairQrImg').src = data.qr;
+                    document.getElementById('pairCodeText').textContent = data.code;
+                    document.getElementById('pairQrArea').style.display = '';
+
+                    stopTimer();
+                    var remaining = data.expires_in;
+                    var timerEl = document.getElementById('pairCodeTimer');
+                    function tick() {
+                        if (remaining <= 0) {
+                            stopTimer();
+                            document.getElementById('pairQrArea').style.display = 'none';
+                            return;
+                        }
+                        var m = Math.floor(remaining / 60), s = remaining % 60;
+                        timerEl.textContent = 'Kod ' + m + ':' + (s < 10 ? '0' : '') + s + ' sonra geçersiz olur';
+                        remaining -= 1;
+                    }
+                    tick();
+                    timerInterval = setInterval(tick, 1000);
+                })
+                .catch(function () { showBtn.disabled = false; });
+        });
+    })();
     </script>
     {% block extra_js %}{% endblock %}
 </body>

@@ -3,7 +3,7 @@ from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import login
 from django.contrib.auth.views import LoginView
 from django.contrib.auth.decorators import login_required
-from .models import Product, StockMovement, Customer, Sale, SaleItem, ReferenceBarcode, AppSetting, MarkupRule
+from .models import Product, StockMovement, Customer, Sale, SaleItem, ReferenceBarcode, AppSetting, MarkupRule, PairingCode
 from .forms import ProductForm, CustomerForm
 from django.http import HttpResponseRedirect, HttpResponse, JsonResponse
 from django.urls import reverse
@@ -1160,3 +1160,71 @@ def restart_app(request):
         threading.Thread(target=_restart, daemon=True).start()
         return render(request, 'inventory/restarting.html', {})
     return redirect('update_app')
+
+
+@login_required
+def pairing_start(request):
+    """Yeni bir telefon eşleştirme kodu üretir: 6 haneli kod + bunu doğrulama
+    sayfasına yönlendiren bir QR kod görüntüsü (base64 PNG). 'Telefondan Bağlan'
+    açılır menüsünden JS ile çağrılır."""
+    if request.method != 'POST':
+        return JsonResponse({'ok': False}, status=405)
+    import random
+    import secrets
+    import base64
+    from django.utils import timezone
+    import datetime
+
+    PairingCode.objects.filter(
+        created_at__lt=timezone.now() - datetime.timedelta(minutes=PairingCode.EXPIRY_MINUTES)
+    ).delete()
+
+    token = secrets.token_urlsafe(16)
+    code = f"{random.randint(0, 999999):06d}"
+    PairingCode.objects.create(token=token, code=code)
+
+    lan_url = os.environ.get('PAPIRUS_LAN_URL', '').rstrip('/')
+    pair_url = f"{lan_url}/pair/{token}/" if lan_url else request.build_absolute_uri(f'/pair/{token}/')
+
+    try:
+        import qrcode
+        qr = qrcode.QRCode(box_size=6, border=2)
+        qr.add_data(pair_url)
+        qr.make(fit=True)
+        img = qr.make_image(fill_color='black', back_color='white')
+        buf = io.BytesIO()
+        img.save(buf, format='PNG')
+        qr_data_uri = 'data:image/png;base64,' + base64.b64encode(buf.getvalue()).decode('ascii')
+    except Exception:
+        qr_data_uri = ''
+
+    return JsonResponse({
+        'ok': True,
+        'code': code,
+        'qr': qr_data_uri,
+        'url': pair_url,
+        'expires_in': PairingCode.EXPIRY_MINUTES * 60,
+    })
+
+
+def pair_confirm(request, token):
+    """Telefon QR'ı okuyunca (giriş yapmadan) buraya gelir. Bilgisayar
+    ekranındaki 6 haneli kodu doğru girerse asıl giriş sayfasına yönlendirilir
+    — böylece telefonun gerçekten dükkanda, bilgisayarın karşısında olduğu
+    doğrulanmış olur."""
+    pc = PairingCode.objects.filter(token=token).first()
+    error = None
+    if request.method == 'POST':
+        entered = request.POST.get('code', '').strip()
+        if not pc or not pc.is_valid():
+            error = 'Bu bağlantının süresi dolmuş. Bilgisayar ekranında yeni bir kod oluşturun.'
+        elif entered == pc.code:
+            pc.used = True
+            pc.save(update_fields=['used'])
+            return redirect('login')
+        else:
+            pc.attempts += 1
+            pc.save(update_fields=['attempts'])
+            error = 'Kod hatalı. Bilgisayar ekranındaki kodu kontrol edin.'
+    valid = bool(pc and pc.is_valid())
+    return render(request, 'registration/pair_confirm.html', {'valid': valid, 'error': error})

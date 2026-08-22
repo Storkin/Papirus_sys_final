@@ -33,4 +33,6 @@ urlpatterns = [
     path('settings/', views.app_settings, name='app_settings'),
     path('update/', views.update_app, name='update_app'),
     path('restart/', views.restart_app, name='restart_app'),
+    path('api/pair/start/', views.pairing_start, name='pairing_start'),
+    path('pair/<str:token>/', views.pair_confirm, name='pair_confirm'),
 ]
