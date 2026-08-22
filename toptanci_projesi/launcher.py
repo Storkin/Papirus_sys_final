@@ -47,10 +47,22 @@ def _port_free(host, port):
             return False
 
 
-def pick_port(host, preferred):
-    """Önce tercih edilen portu dene; doluysa boş bir port bul."""
-    if _port_free(host, preferred):
-        return preferred
+def pick_port(host, preferred, wait_seconds=6):
+    """Tercih edilen portu bekleyerek dene.
+
+    Uygulama içinden 'yeniden başlat' denildiğinde yeni süreç, eski süreç portu
+    bırakmadan açılabiliyor; o an port dolu görünüp rastgele bir porta düşülüyordu.
+    Bu da telefondaki adresin (ve karekodun) her seferinde değişmesine yol açıyor.
+    Bu yüzden birkaç saniye bekleyip tekrar deniyoruz."""
+    son = time.time() + wait_seconds
+    while time.time() < son:
+        if _port_free(host, preferred):
+            return preferred
+        time.sleep(0.3)
+    # Hâlâ doluysa yakın portları sırayla dene (adres yine tahmin edilebilir kalsın)
+    for p in range(preferred + 1, preferred + 10):
+        if _port_free(host, p):
+            return p
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind((host, 0))
         return s.getsockname()[1]
@@ -58,6 +70,11 @@ def pick_port(host, preferred):
 
 PORT = pick_port(HOST, PREFERRED_PORT)
 URL = f'http://{HOST}:{PORT}/'
+
+# TLS proxy'nin arkasındaki ikinci Waitress (sadece 127.0.0.1). Bu sunucu
+# isteklerin HTTPS olduğunu baştan bilir (url_scheme='https'), böylece Django
+# CSRF kontrolünü doğru şemayla yapar.
+HTTPS_BACKEND_PORT = pick_port(HOST, PREFERRED_PORT + 1, wait_seconds=3)
 
 HTTPS_PORT = pick_port('0.0.0.0', HTTPS_PORT_PREFERRED)
 LAN_URL = f'https://{LAN_IP}:{HTTPS_PORT}/'
@@ -165,31 +182,6 @@ def run_tls_proxy():
             except OSError:
                 pass
 
-    def pipe_client_to_backend(src, dst):
-        """Waitress/Django, TLS'in bu proxy'de sonlandığından habersizdir ve
-        isteği düz HTTP sanır (is_secure() hep False döner). İlk istekteki
-        header bölümüne 'X-Forwarded-Proto: https' ekleyerek Django'ya gerçek
-        şemayı bildiriyoruz (SECURE_PROXY_SSL_HEADER ile eşleşir)."""
-        injected = False
-        try:
-            while True:
-                data = src.recv(65536)
-                if not data:
-                    break
-                if not injected:
-                    injected = True
-                    sep = data.find(b'\r\n\r\n')
-                    if sep != -1:
-                        data = data[:sep] + b'\r\nX-Forwarded-Proto: https' + data[sep:]
-                dst.sendall(data)
-        except OSError:
-            pass
-        finally:
-            try:
-                dst.shutdown(socket.SHUT_WR)
-            except OSError:
-                pass
-
     def handle(raw_client):
         try:
             client = ctx.wrap_socket(raw_client, server_side=True)
@@ -197,11 +189,13 @@ def run_tls_proxy():
             raw_client.close()
             return
         try:
-            backend = socket.create_connection((HOST, PORT), timeout=10)
+            # HTTPS'i bilen ikinci Waitress'e bağlan — burada ham baytları
+            # olduğu gibi aktarıyoruz, isteklere hiç dokunmuyoruz.
+            backend = socket.create_connection((HOST, HTTPS_BACKEND_PORT), timeout=10)
         except OSError:
             client.close()
             return
-        t1 = threading.Thread(target=pipe_client_to_backend, args=(client, backend), daemon=True)
+        t1 = threading.Thread(target=pipe, args=(client, backend), daemon=True)
         t2 = threading.Thread(target=pipe, args=(backend, client), daemon=True)
         t1.start()
         t2.start()
@@ -290,16 +284,22 @@ def periodic_backup(interval=7200):
 
 
 def run_server():
-    """Django'yu Waitress ile sessizce sun (sadece 127.0.0.1 — dışarıya HTTPS proxy açar).
+    """Masaüstü penceresi için düz HTTP sunucu (sadece 127.0.0.1)."""
+    serve(application, host=HOST, port=PORT, threads=8, _quiet=True)
 
-    trusted_proxy: Waitress güvenlik gereği X-Forwarded-* başlıklarını varsayılan
-    olarak siler. TLS proxy'miz aynı makinede (127.0.0.1) çalıştığı ve Waitress
-    dışarıya hiç açılmadığı için o başlığa güvenmesini söylüyoruz — yoksa Django
-    telefondan gelen HTTPS isteğini düz HTTP sanıp CSRF Origin kontrolünde
-    reddediyor ("CSRF doğrulaması başarısız oldu")."""
-    serve(application, host=HOST, port=PORT, threads=8, _quiet=True,
-          trusted_proxy=HOST, trusted_proxy_headers={'x-forwarded-proto'},
-          clear_untrusted_proxy_headers=True)
+
+def run_https_backend():
+    """Telefon/tablet için ikinci sunucu — TLS proxy'nin arkasında durur.
+
+    url_scheme='https': TLS bağlantıyı proxy sonlandırdığı için Waitress'e
+    isteklerin aslında HTTPS olduğunu baştan söylüyoruz. Böylece Django
+    request.is_secure() değerini doğru görüyor ve CSRF Origin kontrolünü
+    https şemasıyla yapıyor. (Daha önce her isteğe başlık eklemeye çalışıyorduk;
+    tarayıcılar aynı bağlantıda birden çok istek gönderdiği için ilk istekten
+    sonrakiler başlıksız kalıyor ve "CSRF doğrulaması başarısız" hatası
+    veriyordu.) Sadece 127.0.0.1'de dinler; dışarıya yalnızca TLS proxy açıktır."""
+    serve(application, host=HOST, port=HTTPS_BACKEND_PORT, threads=8, _quiet=True,
+          url_scheme='https')
 
 
 def wait_until_ready(timeout=20):
@@ -329,6 +329,7 @@ def main():
     # uygulaması yine de sorunsuz açılsın diye sessizce devam ediyoruz.
     try:
         ensure_tls_cert()
+        threading.Thread(target=run_https_backend, daemon=True).start()
         threading.Thread(target=run_tls_proxy, daemon=True).start()
     except Exception:
         pass

@@ -54,13 +54,9 @@ ALLOWED_HOSTS = os.environ.get(
 _csrf_origins = os.environ.get('PAPIRUS_CSRF_TRUSTED_ORIGINS', '').strip()
 CSRF_TRUSTED_ORIGINS = [o for o in _csrf_origins.split(',') if o]
 
-# launcher.py'deki TLS proxy, telefon/tablet için HTTPS'i kendi üzerinde
-# sonlandırıp Django'ya düz HTTP olarak iletiyor; bu yüzden Django normalde
-# isteğin aslında HTTPS olduğunu bilmez (request.is_secure() hep False
-# döner). Proxy her isteğe 'X-Forwarded-Proto: https' başlığı eklediği için
-# Django'ya bunu güvenilir kabul etmesini söylüyoruz — CSRF'nin HTTPS'e özel
-# Referer kontrolü ve ileride eklenebilecek Secure çerez ayarları için önemli.
-SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+# Not: Telefondan gelen isteklerin HTTPS olduğunu Django'ya bildirmek için
+# X-Forwarded-Proto başlığına gerek yok. launcher.py, TLS proxy'nin arkasında
+# url_scheme='https' ile ayrı bir Waitress çalıştırıyor; şema oradan geliyor.
 
 # HTTPS hardening — enable ONLY when the app is actually served over HTTPS
 # (e.g. behind a reverse proxy on the shop network). Leave off for the
