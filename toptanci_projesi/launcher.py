@@ -165,6 +165,31 @@ def run_tls_proxy():
             except OSError:
                 pass
 
+    def pipe_client_to_backend(src, dst):
+        """Waitress/Django, TLS'in bu proxy'de sonlandığından habersizdir ve
+        isteği düz HTTP sanır (is_secure() hep False döner). İlk istekteki
+        header bölümüne 'X-Forwarded-Proto: https' ekleyerek Django'ya gerçek
+        şemayı bildiriyoruz (SECURE_PROXY_SSL_HEADER ile eşleşir)."""
+        injected = False
+        try:
+            while True:
+                data = src.recv(65536)
+                if not data:
+                    break
+                if not injected:
+                    injected = True
+                    sep = data.find(b'\r\n\r\n')
+                    if sep != -1:
+                        data = data[:sep] + b'\r\nX-Forwarded-Proto: https' + data[sep:]
+                dst.sendall(data)
+        except OSError:
+            pass
+        finally:
+            try:
+                dst.shutdown(socket.SHUT_WR)
+            except OSError:
+                pass
+
     def handle(raw_client):
         try:
             client = ctx.wrap_socket(raw_client, server_side=True)
@@ -176,7 +201,7 @@ def run_tls_proxy():
         except OSError:
             client.close()
             return
-        t1 = threading.Thread(target=pipe, args=(client, backend), daemon=True)
+        t1 = threading.Thread(target=pipe_client_to_backend, args=(client, backend), daemon=True)
         t2 = threading.Thread(target=pipe, args=(backend, client), daemon=True)
         t1.start()
         t2.start()
@@ -265,8 +290,16 @@ def periodic_backup(interval=7200):
 
 
 def run_server():
-    """Django'yu Waitress ile sessizce sun (sadece 127.0.0.1 — dışarıya HTTPS proxy açar)."""
-    serve(application, host=HOST, port=PORT, threads=8, _quiet=True)
+    """Django'yu Waitress ile sessizce sun (sadece 127.0.0.1 — dışarıya HTTPS proxy açar).
+
+    trusted_proxy: Waitress güvenlik gereği X-Forwarded-* başlıklarını varsayılan
+    olarak siler. TLS proxy'miz aynı makinede (127.0.0.1) çalıştığı ve Waitress
+    dışarıya hiç açılmadığı için o başlığa güvenmesini söylüyoruz — yoksa Django
+    telefondan gelen HTTPS isteğini düz HTTP sanıp CSRF Origin kontrolünde
+    reddediyor ("CSRF doğrulaması başarısız oldu")."""
+    serve(application, host=HOST, port=PORT, threads=8, _quiet=True,
+          trusted_proxy=HOST, trusted_proxy_headers={'x-forwarded-proto'},
+          clear_untrusted_proxy_headers=True)
 
 
 def wait_until_ready(timeout=20):
