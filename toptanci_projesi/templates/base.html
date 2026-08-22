@@ -402,7 +402,11 @@
         overlay.innerHTML =
             '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:#212529;color:#fff;">' +
                 '<span><i class="fas fa-camera mr-2"></i>Barkod Tara</span>' +
-                '<button type="button" id="camScanClose" class="btn btn-sm btn-light">Kapat</button>' +
+                '<span>' +
+                    '<button type="button" id="camScanTorch" class="btn btn-sm btn-warning mr-2" style="display:none">' +
+                        '<i class="fas fa-lightbulb"></i> Işık</button>' +
+                    '<button type="button" id="camScanClose" class="btn btn-sm btn-light">Kapat</button>' +
+                '</span>' +
             '</div>' +
             '<div style="flex:1;position:relative;overflow:hidden;">' +
                 '<video id="camScanVideo" autoplay playsinline muted style="width:100%;height:100%;object-fit:cover;"></video>' +
@@ -415,43 +419,115 @@
 
         var video = overlay.querySelector('#camScanVideo');
         var statusEl = overlay.querySelector('#camScanStatus');
+        var torchBtn = overlay.querySelector('#camScanTorch');
         var stream = null;
+        var track = null;
         var stopped = false;
-        var rafId = null;
+        var timer = null;
 
         function cleanup() {
             stopped = true;
-            if (rafId) cancelAnimationFrame(rafId);
+            if (timer) clearTimeout(timer);
             if (stream) stream.getTracks().forEach(function (t) { t.stop(); });
             overlay.remove();
         }
         overlay.querySelector('#camScanClose').addEventListener('click', cleanup);
 
-        navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+        // Yüksek çözünürlük şart: varsayılan (640x480) barkod çizgilerini ayırt
+        // etmeye yetmiyor, tarama tutarsız oluyor.
+        navigator.mediaDevices.getUserMedia({
+            video: {
+                facingMode: { ideal: 'environment' },
+                width: { ideal: 1920 },
+                height: { ideal: 1080 }
+            }
+        })
             .then(function (s) {
                 stream = s;
                 video.srcObject = s;
-                statusEl.textContent = 'Barkodu kare içine getirin...';
+                track = s.getVideoTracks()[0];
+
+                // Sürekli otomatik odaklama — yoksa kamera sabit odakta kalıp
+                // yakındaki barkodu bulanık görüyor.
+                try {
+                    var caps = track.getCapabilities ? track.getCapabilities() : {};
+                    var adv = [];
+                    if (caps.focusMode && caps.focusMode.indexOf('continuous') !== -1) {
+                        adv.push({ focusMode: 'continuous' });
+                    }
+                    if (adv.length) track.applyConstraints({ advanced: adv });
+
+                    // Karanlık raf/depo için el feneri (destekleyen telefonlarda)
+                    if (caps.torch) {
+                        var acik = false;
+                        torchBtn.style.display = '';
+                        torchBtn.addEventListener('click', function () {
+                            acik = !acik;
+                            track.applyConstraints({ advanced: [{ torch: acik }] });
+                        });
+                    }
+                } catch (e) { /* eski tarayıcı — odak/ışık ayarı atlanır */ }
+
                 var detector;
                 try { detector = new BarcodeDetector(); }
                 catch (e) { statusEl.textContent = 'Tarayıcı barkod algılamayı desteklemiyor.'; return; }
 
+                var sonDeger = null;
+                var ustUste = 0;
+                var hataSayisi = 0;
+
+                function basarili(kod) {
+                    if (navigator.vibrate) { try { navigator.vibrate(60); } catch (e) {} }
+                    statusEl.textContent = 'Okundu: ' + kod;
+                    cleanup();
+                    onDetect(kod);
+                }
+
                 function scanLoop() {
                     if (stopped) return;
+                    // Video gerçekten hazır olmadan taramak boşuna — kare henüz yok.
+                    if (video.readyState < 2 || !video.videoWidth) {
+                        timer = setTimeout(scanLoop, 100);
+                        return;
+                    }
                     detector.detect(video).then(function (codes) {
                         if (stopped) return;
                         if (codes.length > 0) {
                             var value = codes[0].rawValue;
-                            cleanup();
-                            onDetect(value);
-                            return;
+                            // Aynı kodu üst üste iki kez okuyunca kabul et —
+                            // tek karelik yanlış okumaları eler.
+                            if (value === sonDeger) {
+                                ustUste++;
+                            } else {
+                                sonDeger = value;
+                                ustUste = 1;
+                            }
+                            if (ustUste >= 2) { basarili(value); return; }
+                            statusEl.textContent = 'Okunuyor: ' + value;
+                        } else if (sonDeger !== null) {
+                            statusEl.textContent = 'Barkodu kare içine getirin...';
                         }
-                        rafId = requestAnimationFrame(scanLoop);
+                        timer = setTimeout(scanLoop, 120);
                     }).catch(function () {
-                        if (!stopped) rafId = requestAnimationFrame(scanLoop);
+                        if (stopped) return;
+                        hataSayisi++;
+                        if (hataSayisi === 20) {
+                            statusEl.textContent = 'Tarama sorunlu — barkodu elle yazmayı deneyin.';
+                        }
+                        timer = setTimeout(scanLoop, 150);
                     });
                 }
-                rafId = requestAnimationFrame(scanLoop);
+
+                // Kare boyutu belli olunca taramaya başla
+                function basla() {
+                    statusEl.textContent = 'Barkodu kare içine getirin...';
+                    scanLoop();
+                }
+                if (video.readyState >= 2 && video.videoWidth) {
+                    basla();
+                } else {
+                    video.addEventListener('loadedmetadata', basla, { once: true });
+                }
             })
             .catch(function (err) {
                 statusEl.textContent = 'Kameraya erişilemedi: ' + (err && err.message ? err.message : err);
