@@ -151,7 +151,7 @@
                             <div class="dropdown-menu dropdown-menu-right shadow p-3" aria-labelledby="lanDropdown" style="min-width:280px">
                                 <h6 class="font-weight-bold text-primary mb-2"><i class="fas fa-wifi mr-1"></i> Telefondan Bağlan</h6>
                                 <p class="small text-muted mb-2">Telefon/tablet aynı WiFi'da olmalı. Tarayıcıda bu adresi aç:</p>
-                                <div class="input-group input-group-sm">
+                                <div class="input-group input-group-sm mb-2">
                                     <input type="text" class="form-control" value="{{ LAN_URL }}" id="lanUrlBox" readonly onclick="this.select()">
                                     <div class="input-group-append">
                                         <button class="btn btn-outline-primary" type="button" onclick="navigator.clipboard.writeText(document.getElementById('lanUrlBox').value)" title="Kopyala">
@@ -159,6 +159,12 @@
                                         </button>
                                     </div>
                                 </div>
+                                <p class="small text-muted mb-0">
+                                    <i class="fas fa-shield-alt mr-1"></i>
+                                    İlk açılışta "Bağlantınız gizli değil" gibi bir uyarı çıkar — bu normaldir
+                                    (kendinden imzalı güvenlik sertifikası). <strong>Gelişmiş → Yine de devam et</strong>
+                                    diyerek geçebilirsin; sonrasında kamera dahil her şey sorunsuz çalışır.
+                                </p>
                             </div>
                         </li>
                         {% endif %}

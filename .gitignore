@@ -12,6 +12,8 @@ secret_key.txt
 staticfiles/
 backups/
 errors.log
+papirus_cert.pem
+papirus_key.pem
 # Not: *.mo (derlenmiş çeviriler) bilerek git'e dahil — dükkan PC'sinde
 # gettext kurmaya gerek kalmasın, Türkçe yazılar hazır gelsin.
 

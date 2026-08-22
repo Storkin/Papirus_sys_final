@@ -49,6 +49,11 @@ ALLOWED_HOSTS = os.environ.get(
     'PAPIRUS_ALLOWED_HOSTS', '127.0.0.1,localhost'
 ).split(',')
 
+# HTTPS üzerinden (telefon vb.) gelen POST isteklerinde Django'nun CSRF Origin
+# kontrolünü geçmesi için — şema (https://) dahil tam origin gerekir.
+_csrf_origins = os.environ.get('PAPIRUS_CSRF_TRUSTED_ORIGINS', '').strip()
+CSRF_TRUSTED_ORIGINS = [o for o in _csrf_origins.split(',') if o]
+
 # HTTPS hardening — enable ONLY when the app is actually served over HTTPS
 # (e.g. behind a reverse proxy on the shop network). Leave off for the
 # localhost desktop app, otherwise the forced HTTPS redirect breaks it.
