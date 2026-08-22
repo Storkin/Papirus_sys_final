@@ -17,6 +17,29 @@ from waitress import serve
 # --- Proje yolunu ve Django ayarlarını hazırla ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, BASE_DIR)
+
+
+def get_lan_ip():
+    """Bu bilgisayarın yerel ağ (WiFi) IP adresini bul. UDP 'connect' sadece
+    rota seçer, gerçekten paket göndermez — internet olmasa da çalışır."""
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.connect(('8.8.8.8', 80))
+        return s.getsockname()[0]
+    except OSError:
+        return '127.0.0.1'
+    finally:
+        s.close()
+
+
+LAN_IP = get_lan_ip()
+
+# Aynı WiFi'daki telefon/tabletten erişilebilsin diye ALLOWED_HOSTS'a bu
+# bilgisayarın yerel IP'sini ekle. django.setup()'tan ÖNCE ayarlanmalı
+# (settings.py bunu import anında okuyor).
+if 'PAPIRUS_ALLOWED_HOSTS' not in os.environ:
+    os.environ['PAPIRUS_ALLOWED_HOSTS'] = f'127.0.0.1,localhost,{LAN_IP}'
+
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'toptanci_projesi.settings')
 
 import django  # noqa: E402
@@ -24,14 +47,15 @@ django.setup()
 
 from toptanci_projesi.wsgi import application  # noqa: E402
 
-HOST = '127.0.0.1'
+HOST = '127.0.0.1'      # masaüstü penceresi (pywebview) bu adresten bağlanır
+BIND_HOST = '0.0.0.0'   # sunucu TÜM ağ arayüzlerinde dinler (telefon bağlanabilsin)
 PREFERRED_PORT = 8731  # sabit port: oturum çerezinin origin'i hep aynı kalsın
 
 
 def _port_free(port):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         try:
-            s.bind((HOST, port))
+            s.bind((BIND_HOST, port))
             return True
         except OSError:
             return False
@@ -42,12 +66,14 @@ def pick_port():
     if _port_free(PREFERRED_PORT):
         return PREFERRED_PORT
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind((HOST, 0))
+        s.bind((BIND_HOST, 0))
         return s.getsockname()[1]
 
 
 PORT = pick_port()
 URL = f'http://{HOST}:{PORT}/'
+LAN_URL = f'http://{LAN_IP}:{PORT}/'
+os.environ['PAPIRUS_LAN_URL'] = LAN_URL
 
 # Çerezlerin (oturum) diske yazılacağı kalıcı klasör — "oturum açık kalsın" için şart
 STORAGE_PATH = os.path.join(
@@ -122,8 +148,8 @@ def periodic_backup(interval=7200):
 
 
 def run_server():
-    """Django'yu Waitress ile sessizce sun."""
-    serve(application, host=HOST, port=PORT, threads=8, _quiet=True)
+    """Django'yu Waitress ile sessizce sun (0.0.0.0: ağdaki diğer cihazlar da bağlanabilir)."""
+    serve(application, host=BIND_HOST, port=PORT, threads=8, _quiet=True)
 
 
 def wait_until_ready(timeout=20):

@@ -141,6 +141,27 @@
                     </a>
 
                     <ul class="navbar-nav ml-auto">
+                        {% if LAN_URL %}
+                        <!-- Telefondan Bağlan -->
+                        <li class="nav-item dropdown no-arrow mr-2">
+                            <a class="nav-link dropdown-toggle" href="#" id="lanDropdown" role="button"
+                               data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" title="Telefondan Bağlan">
+                                <i class="fas fa-mobile-alt fa-fw"></i>
+                            </a>
+                            <div class="dropdown-menu dropdown-menu-right shadow p-3" aria-labelledby="lanDropdown" style="min-width:280px">
+                                <h6 class="font-weight-bold text-primary mb-2"><i class="fas fa-wifi mr-1"></i> Telefondan Bağlan</h6>
+                                <p class="small text-muted mb-2">Telefon/tablet aynı WiFi'da olmalı. Tarayıcıda bu adresi aç:</p>
+                                <div class="input-group input-group-sm">
+                                    <input type="text" class="form-control" value="{{ LAN_URL }}" id="lanUrlBox" readonly onclick="this.select()">
+                                    <div class="input-group-append">
+                                        <button class="btn btn-outline-primary" type="button" onclick="navigator.clipboard.writeText(document.getElementById('lanUrlBox').value)" title="Kopyala">
+                                            <i class="fas fa-copy"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </li>
+                        {% endif %}
                         <!-- Language Switcher -->
                         <li class="nav-item dropdown no-arrow mr-2">
                             <a class="nav-link dropdown-toggle" href="#" id="langDropdown" role="button"
@@ -340,6 +361,96 @@
                 }
                 targetRow = e.key === 'ArrowDown' ? targetRow.nextElementSibling : targetRow.previousElementSibling;
             }
+        });
+    }
+
+    // ── Kamera ile barkod tarama ────────────────────────────────────────────────
+    // Android Chrome'un yerleşik BarcodeDetector API'sini kullanır — ek kütüphane
+    // indirmeye gerek yok. iOS Safari/eski tarayıcılar desteklemez; buton gizlenir.
+    // Kamera erişimi için "güvenli bağlam" (HTTPS ya da localhost) gerekir; düz
+    // http://ip:port ile telefondan bağlanılıyorsa Chrome'da bir kerelik
+    // chrome://flags ayarı ile izin verilebilir.
+    function isCameraScanSupported() {
+        return ('BarcodeDetector' in window) && !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+    }
+
+    function openCameraScanner(onDetect) {
+        if (!isCameraScanSupported()) {
+            alert('Bu tarayıcı kamera ile barkod taramayı desteklemiyor. Android cihazda Chrome kullanmayı deneyin.');
+            return;
+        }
+        var overlay = document.createElement('div');
+        overlay.style.cssText = 'position:fixed;inset:0;background:#000;z-index:5000;display:flex;flex-direction:column;';
+        overlay.innerHTML =
+            '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:#212529;color:#fff;">' +
+                '<span><i class="fas fa-camera mr-2"></i>Barkod Tara</span>' +
+                '<button type="button" id="camScanClose" class="btn btn-sm btn-light">Kapat</button>' +
+            '</div>' +
+            '<div style="flex:1;position:relative;overflow:hidden;">' +
+                '<video id="camScanVideo" autoplay playsinline muted style="width:100%;height:100%;object-fit:cover;"></video>' +
+                '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;">' +
+                    '<div style="width:80%;max-width:340px;height:120px;border:3px solid #4e73df;border-radius:8px;"></div>' +
+                '</div>' +
+            '</div>' +
+            '<div id="camScanStatus" style="padding:8px 14px;background:#212529;color:#adb5bd;font-size:.85rem;text-align:center;">Kamera açılıyor...</div>';
+        document.body.appendChild(overlay);
+
+        var video = overlay.querySelector('#camScanVideo');
+        var statusEl = overlay.querySelector('#camScanStatus');
+        var stream = null;
+        var stopped = false;
+        var rafId = null;
+
+        function cleanup() {
+            stopped = true;
+            if (rafId) cancelAnimationFrame(rafId);
+            if (stream) stream.getTracks().forEach(function (t) { t.stop(); });
+            overlay.remove();
+        }
+        overlay.querySelector('#camScanClose').addEventListener('click', cleanup);
+
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+            .then(function (s) {
+                stream = s;
+                video.srcObject = s;
+                statusEl.textContent = 'Barkodu kare içine getirin...';
+                var detector;
+                try { detector = new BarcodeDetector(); }
+                catch (e) { statusEl.textContent = 'Tarayıcı barkod algılamayı desteklemiyor.'; return; }
+
+                function scanLoop() {
+                    if (stopped) return;
+                    detector.detect(video).then(function (codes) {
+                        if (stopped) return;
+                        if (codes.length > 0) {
+                            var value = codes[0].rawValue;
+                            cleanup();
+                            onDetect(value);
+                            return;
+                        }
+                        rafId = requestAnimationFrame(scanLoop);
+                    }).catch(function () {
+                        if (!stopped) rafId = requestAnimationFrame(scanLoop);
+                    });
+                }
+                rafId = requestAnimationFrame(scanLoop);
+            })
+            .catch(function (err) {
+                statusEl.textContent = 'Kameraya erişilemedi: ' + (err && err.message ? err.message : err);
+            });
+    }
+
+    // Bir kamera butonunu barkod tarayıcıya bağlar: tıklayınca kamerayı açar,
+    // taranan kodu onDetect(code) callback'ine verir. Desteklenmiyorsa buton gizlenir.
+    function attachCameraScanner(buttonId, onDetect) {
+        var btn = document.getElementById(buttonId);
+        if (!btn) return;
+        if (!isCameraScanSupported()) {
+            btn.style.display = 'none';
+            return;
+        }
+        btn.addEventListener('click', function () {
+            openCameraScanner(onDetect);
         });
     }
     </script>

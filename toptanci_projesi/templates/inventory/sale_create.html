@@ -59,6 +59,11 @@
                         <input type="text" id="barcodeInput" class="form-control form-control-lg"
                                placeholder="{% trans 'Scan or type barcode, press Enter...' %}"
                                autocomplete="off">
+                        <div class="input-group-append">
+                            <button type="button" class="btn btn-outline-primary" id="cameraScanBtn" title="Kamera ile Tara">
+                                <i class="fas fa-camera"></i>
+                            </button>
+                        </div>
                     </div>
                     <div id="barcodeAlert" style="display:none;" class="alert py-2 mt-2 mb-0"></div>
                 </div>
@@ -473,16 +478,25 @@ attachAutocomplete(barcodeInput, 'sale', function (item) {
     barcodeInput.focus();
 });
 
+// Barkodu işle (klavye/USB okuyucu Enter'ı VE kamera taraması ikisi de burayı çağırır)
+function processScannedBarcode(code) {
+    code = (code || '').trim();
+    if (!code) return;
+    const productId = barcodeMap[code];
+    if (!productId) { showBarcodeAlert('danger', '✗ Barkod bulunamadı: ' + code); barcodeInput.focus(); return; }
+    addOrIncrement(productId);
+    barcodeInput.focus();
+}
+
+// Kamera ile tarama butonu (Android Chrome) — taranan kodu ayni islemden gecirir
+attachCameraScanner('cameraScanBtn', processScannedBarcode);
+
 barcodeInput.addEventListener('keydown', function(e) {
     if (e.key !== 'Enter') return;
     e.preventDefault();
     const code = this.value.trim();
     this.value = '';
-    if (!code) return;
-    const productId = barcodeMap[code];
-    if (!productId) { showBarcodeAlert('danger', '✗ Barkod bulunamadı: ' + code); this.focus(); return; }
-    addOrIncrement(productId);
-    this.focus();
+    processScannedBarcode(code);
 });
 
 // ── Başlangıç ───────────────────────────────────────────────────────────────

@@ -44,6 +44,11 @@
                 </div>
                 <input type="text" id="scanInput" class="form-control form-control-lg"
                        placeholder="{% trans 'Scan or type barcode, press Enter...' %}" autocomplete="off">
+                <div class="input-group-append">
+                    <button type="button" class="btn btn-outline-primary" id="cameraScanBtn" title="Kamera ile Tara">
+                        <i class="fas fa-camera"></i>
+                    </button>
+                </div>
             </div>
             <div id="scanAlert" style="display:none;" class="alert py-2 mt-2 mb-0"></div>
         </div>
@@ -198,10 +203,9 @@ function flash(type, msg) {
     scanAlert.textContent = msg; scanAlert.style.display = 'block';
     clearTimeout(scanAlert._t); scanAlert._t = setTimeout(() => scanAlert.style.display = 'none', 2500);
 }
-scanInput.addEventListener('keydown', function (e) {
-    if (e.key !== 'Enter') return;
-    e.preventDefault();
-    const code = this.value.trim(); this.value = '';
+// Barkodu işle (klavye/USB okuyucu Enter'ı VE kamera taraması ikisi de burayı çağırır)
+function processScannedBarcode(code) {
+    code = (code || '').trim();
     if (!code) return;
     fetch('/api/barcode/' + encodeURIComponent(code) + '/')
         .then(r => r.json())
@@ -216,9 +220,19 @@ scanInput.addEventListener('keydown', function (e) {
                 addRow({ barcode: code });
                 flash('secondary', '{% trans "Unknown barcode — type the name" %}');
             }
-            this.focus();
-        }).catch(() => { addRow({ barcode: code }); this.focus(); });
+            scanInput.focus();
+        }).catch(() => { addRow({ barcode: code }); scanInput.focus(); });
+}
+
+scanInput.addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    const code = this.value.trim(); this.value = '';
+    processScannedBarcode(code);
 });
+
+// Kamera ile tarama butonu (Android Chrome) — taranan kodu ayni islemden gecirir
+attachCameraScanner('cameraScanBtn', processScannedBarcode);
 
 // Tabloda canlı filtre (ad/barkod)
 const rowFilter = document.getElementById('rowFilter');

@@ -41,6 +41,20 @@ document.addEventListener('DOMContentLoaded', function () {
     const hint = document.getElementById('barcodeHint');
     if (!barcodeInput) return;
 
+    // Barkod alanının yanına kamera ile tarama butonu ekle
+    const camWrapper = document.createElement('div');
+    camWrapper.className = 'd-flex align-items-center';
+    barcodeInput.parentNode.insertBefore(camWrapper, barcodeInput);
+    camWrapper.appendChild(barcodeInput);
+    barcodeInput.classList.add('flex-grow-1');
+    const camBtn = document.createElement('button');
+    camBtn.type = 'button';
+    camBtn.id = 'cameraScanBtn';
+    camBtn.className = 'btn btn-outline-primary ml-2';
+    camBtn.title = 'Kamera ile Tara';
+    camBtn.innerHTML = '<i class="fas fa-camera"></i>';
+    camWrapper.appendChild(camBtn);
+
     function field(name) { return form.querySelector('[name="' + name + '"]'); }
 
     function showHint(type, msg) {
@@ -90,6 +104,12 @@ document.addEventListener('DOMContentLoaded', function () {
     });
     // Barkod alanından çıkınca da ara
     barcodeInput.addEventListener('change', function () { lookup(this.value); });
+
+    // Kamera ile tarama butonu (Android Chrome)
+    attachCameraScanner('cameraScanBtn', function (code) {
+        barcodeInput.value = code;
+        lookup(code);
+    });
 });
 </script>
 {% endblock %}
